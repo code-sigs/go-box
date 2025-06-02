@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/code-sigs/go-box/internal/trace"
+	"github.com/code-sigs/go-box/pkg/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
