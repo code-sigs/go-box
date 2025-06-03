@@ -2,7 +2,12 @@ package router
 
 import (
 	"context"
+	"net/http"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/code-sigs/go-box/internal/handler"
 	"github.com/gin-gonic/gin"
@@ -17,6 +22,7 @@ type routeEntry struct {
 type Router struct {
 	routes      []routeEntry
 	proxyHeader []string
+	middlewares []gin.HandlerFunc // 新增：用户自定义中间件
 }
 
 // New 创建一个新的 Box 实例
@@ -26,10 +32,18 @@ func New() *Router {
 	}
 }
 
+// WithHeader 设置需要代理到 gRPC 的 header
 func (r *Router) WithHeader(header ...string) *Router {
 	r.proxyHeader = append(r.proxyHeader, header...)
 	return r
 }
+
+// Use 添加用户自定义 gin 中间件
+func (r *Router) Use(mw ...gin.HandlerFunc) *Router {
+	r.middlewares = append(r.middlewares, mw...)
+	return r
+}
+
 func (r *Router) injector(c *gin.Context, ctx context.Context) context.Context {
 	md := metadata.New(nil)
 	if len(r.proxyHeader) == 0 {
@@ -63,11 +77,34 @@ func (r *Router) Register(path string, grpcFunc any) {
 	})
 }
 
-// Run 启动 Box 服务
+// Run 启动 Box 服务，支持用户自定义中间件，并实现优雅关闭
 func (r *Router) Run(addr string) error {
-	engine := gin.Default()
-	for _, r := range r.routes {
-		engine.POST(r.path, r.handler)
+	engine := gin.New()
+	engine.Use(gin.Recovery(), gin.Logger())
+	for _, mw := range r.middlewares {
+		engine.Use(mw)
 	}
-	return engine.Run(addr)
+	for _, route := range r.routes {
+		engine.POST(route.path, route.handler)
+	}
+
+	srv := &http.Server{
+		Addr:    addr,
+		Handler: engine,
+	}
+
+	// 启动服务
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			panic("listen: " + err.Error())
+		}
+	}()
+
+	// 优雅关闭
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return srv.Shutdown(ctx)
 }
