@@ -17,8 +17,9 @@ var (
 )
 
 type options struct {
-	logLevel   string
-	maxAgeDays int
+	logLevel     string
+	maxAgeDays   int
+	enableStdout bool // 新增：是否输出到终端
 }
 
 type Option func(*options)
@@ -31,6 +32,11 @@ func WithMaxAge(days int) Option {
 	return func(o *options) { o.maxAgeDays = days }
 }
 
+// 新增：配置是否输出到终端
+func WithStdout(enable bool) Option {
+	return func(o *options) { o.enableStdout = enable }
+}
+
 func init() {
 	Init("./logs") // 默认路径
 }
@@ -38,8 +44,9 @@ func init() {
 func Init(logDir string, opts ...Option) {
 	// 设置默认值
 	conf := &options{
-		logLevel:   "info",
-		maxAgeDays: 7,
+		logLevel:     "info",
+		maxAgeDays:   7,
+		enableStdout: false, // 默认不输出到终端
 	}
 	for _, opt := range opts {
 		opt(conf)
@@ -74,14 +81,18 @@ func Init(logDir string, opts ...Option) {
 		zapcore.AddSync(writer),
 		level,
 	)
-	consoleCore := zapcore.NewCore(
-		zapcore.NewConsoleEncoder(encoderConfig),
-		zapcore.AddSync(os.Stdout),
-		level,
-	)
 
-	// 同时输出到文件和终端
-	core := zapcore.NewTee(fileCore, consoleCore)
+	var core zapcore.Core
+	if conf.enableStdout {
+		consoleCore := zapcore.NewCore(
+			zapcore.NewConsoleEncoder(encoderConfig),
+			zapcore.AddSync(os.Stdout),
+			level,
+		)
+		core = zapcore.NewTee(fileCore, consoleCore)
+	} else {
+		core = fileCore
+	}
 
 	zlogger = zap.New(core, zap.AddCaller(), zap.AddCallerSkip(1))
 }
