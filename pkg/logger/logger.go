@@ -41,19 +41,16 @@ func Init(logDir string, opts ...Option) {
 		logLevel:   "info",
 		maxAgeDays: 7,
 	}
-	// 应用 Option
 	for _, opt := range opts {
 		opt(conf)
 	}
-	// 确保日志目录存在
 	if err := os.MkdirAll(logDir, os.ModePerm); err != nil {
 		panic(fmt.Sprintf("failed to create log directory: %v", err))
 	}
 
-	// 构建 rotatelogs
 	writer, err := rotatelogs.New(
 		filepath.Join(logDir, "app-%Y-%m-%d.log"),
-		rotatelogs.WithLinkName(filepath.Join(logDir, "latest.log")), // 软链接指向最新日志
+		rotatelogs.WithLinkName(filepath.Join(logDir, "latest.log")),
 		rotatelogs.WithMaxAge(time.Duration(conf.maxAgeDays)*24*time.Hour),
 		rotatelogs.WithRotationTime(24*time.Hour),
 	)
@@ -61,7 +58,6 @@ func Init(logDir string, opts ...Option) {
 		panic(fmt.Sprintf("failed to create rotatelogs: %v", err))
 	}
 
-	// 设置 encoderConfig
 	encoderConfig := zapcore.EncoderConfig{
 		TimeKey:      "ts",
 		LevelKey:     "level",
@@ -73,11 +69,19 @@ func Init(logDir string, opts ...Option) {
 	}
 
 	level := parseLevel(conf.logLevel)
-	core := zapcore.NewCore(
+	fileCore := zapcore.NewCore(
 		zapcore.NewConsoleEncoder(encoderConfig),
 		zapcore.AddSync(writer),
 		level,
 	)
+	consoleCore := zapcore.NewCore(
+		zapcore.NewConsoleEncoder(encoderConfig),
+		zapcore.AddSync(os.Stdout),
+		level,
+	)
+
+	// 同时输出到文件和终端
+	core := zapcore.NewTee(fileCore, consoleCore)
 
 	zlogger = zap.New(core, zap.AddCaller(), zap.AddCallerSkip(1))
 }
