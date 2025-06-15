@@ -1,0 +1,20 @@
+# MongoDB URI，支持多个节点、副本集或分片集群连接
+uri: "mongodb://localhost:27017"
+
+# 默认使用的数据库名
+database: "my_database"
+
+# 连接池最小连接数
+minPoolSize: 10
+
+# 连接池最大连接数
+maxPoolSize: 100
+
+# 连接超时时间（单位：秒）
+connectTimeout: 5
+
+# 读偏好（primary、secondary、nearest、primaryPreferred、secondaryPreferred）
+readPreference: "primary"
+
+# 写一致性级别（majority、w1、w2 等）
+writeConcern: "majority"
