@@ -46,7 +46,7 @@ func Init(logDir string, opts ...Option) {
 	conf := &options{
 		logLevel:     "info",
 		maxAgeDays:   7,
-		enableStdout: false, // 默认不输出到终端
+		enableStdout: true, // 默认不输出到终端
 	}
 	for _, opt := range opts {
 		opt(conf)
