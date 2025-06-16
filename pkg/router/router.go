@@ -78,7 +78,7 @@ func (r *Router) Register(path string, grpcFunc any) {
 }
 
 // Run 启动 Box 服务，支持用户自定义中间件，并实现优雅关闭
-func (r *Router) Run(addr string) error {
+func (r *Router) Run(addr string, shutdown func()) error {
 	engine := gin.New()
 	engine.Use(gin.Recovery(), gin.Logger())
 	for _, mw := range r.middlewares {
@@ -104,6 +104,9 @@ func (r *Router) Run(addr string) error {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
+	if shutdown != nil {
+		shutdown()
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	return srv.Shutdown(ctx)
