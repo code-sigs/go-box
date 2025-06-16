@@ -8,7 +8,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/code-sigs/go-box/internal/handler"
 	"github.com/code-sigs/go-box/pkg/rpcerror"
 
 	"github.com/gin-gonic/gin"
@@ -34,7 +33,7 @@ func mockGRPCFuncError(ctx context.Context, req *TestRequest) (*TestResponse, er
 func TestGenericGRPCHandler_Success(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	router.POST("/test", handler.GenericGRPCHandler(mockGRPCFunc, handler.DefaultContextInjector))
+	router.POST("/test", GenericGRPCHandler(mockGRPCFunc, DefaultContextInjector))
 
 	body, _ := json.Marshal(TestRequest{Name: "GoBox"})
 	req, _ := http.NewRequest("POST", "/test", bytes.NewBuffer(body))
@@ -46,7 +45,7 @@ func TestGenericGRPCHandler_Success(t *testing.T) {
 	t.Logf("Response body: %s", w.Body.String()) // 打印响应体
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	var resp handler.StandardResponse[*TestResponse]
+	var resp StandardResponse[*TestResponse]
 	err := json.Unmarshal(w.Body.Bytes(), &resp)
 	assert.NoError(t, err)
 	assert.Equal(t, int32(0), resp.Code)
@@ -57,7 +56,7 @@ func TestGenericGRPCHandler_Success(t *testing.T) {
 func TestGenericGRPCHandler_BadRequest(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	router.POST("/test", handler.GenericGRPCHandler(mockGRPCFunc, handler.DefaultContextInjector))
+	router.POST("/test", GenericGRPCHandler(mockGRPCFunc, DefaultContextInjector))
 
 	req, _ := http.NewRequest("POST", "/test", bytes.NewBuffer([]byte(`invalid json`)))
 	req.Header.Set("Content-Type", "application/json")
@@ -68,7 +67,7 @@ func TestGenericGRPCHandler_BadRequest(t *testing.T) {
 	t.Logf("Response body: %s", w.Body.String()) // 打印响应体
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-	var resp handler.StandardResponse[any]
+	var resp StandardResponse[any]
 	err := json.Unmarshal(w.Body.Bytes(), &resp)
 	assert.NoError(t, err)
 	assert.Equal(t, int32(400), resp.Code)
@@ -77,7 +76,7 @@ func TestGenericGRPCHandler_BadRequest(t *testing.T) {
 func TestGenericGRPCHandler_Error(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	router.POST("/test", handler.GenericGRPCHandler(mockGRPCFuncError, handler.DefaultContextInjector))
+	router.POST("/test", GenericGRPCHandler(mockGRPCFuncError, DefaultContextInjector))
 
 	body, _ := json.Marshal(TestRequest{Name: "GoBox"})
 	req, _ := http.NewRequest("POST", "/test", bytes.NewBuffer(body))
@@ -89,7 +88,7 @@ func TestGenericGRPCHandler_Error(t *testing.T) {
 	t.Logf("Response body: %s", w.Body.String()) // 打印响应体
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	var resp handler.StandardResponse[any]
+	var resp StandardResponse[any]
 	err := json.Unmarshal(w.Body.Bytes(), &resp)
 	assert.NoError(t, err)
 	assert.Equal(t, int32(5100), resp.Code)

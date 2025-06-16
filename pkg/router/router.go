@@ -9,7 +9,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/code-sigs/go-box/internal/handler"
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc/metadata"
 )
@@ -70,7 +69,7 @@ func (r *Router) injector(c *gin.Context, ctx context.Context) context.Context {
 
 // Register 注册一个 gRPC 方法与其绑定路径
 func (r *Router) Register(path string, grpcFunc any) {
-	h := handler.GenericGRPCHandler(grpcFunc, r.injector)
+	h := GenericGRPCHandler(grpcFunc, r.injector)
 	r.routes = append(r.routes, routeEntry{
 		path:    path,
 		handler: h,
