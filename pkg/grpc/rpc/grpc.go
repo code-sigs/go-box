@@ -3,8 +3,8 @@ package rpc
 import (
 	"context"
 
-	"github.com/code-sigs/go-box/internal/registry/registry"
-	"github.com/code-sigs/go-box/internal/resolver"
+	"github.com/code-sigs/go-box/pkg/registry/registry_interface"
+	"github.com/code-sigs/go-box/pkg/resolver"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -20,7 +20,7 @@ func NewGRPCServer() *grpc.Server {
 	)
 }
 
-func NewGRPCConn(ctx context.Context, serviceName string, registry registry.Registry) (*grpc.ClientConn, error) {
+func NewGRPCConn(ctx context.Context, serviceName string, registry registry_interface.Registry) (*grpc.ClientConn, error) {
 	client, err := grpc.NewClient(
 		registry.Name()+":///"+serviceName,
 		grpc.WithResolvers(resolver.NewBuilder(registry)),
@@ -39,7 +39,7 @@ func NewGRPCConn(ctx context.Context, serviceName string, registry registry.Regi
 func NewGRPCConnsForAllInstances(
 	ctx context.Context,
 	serviceName string,
-	registry registry.Registry,
+	registry registry_interface.Registry,
 ) ([]*grpc.ClientConn, error) {
 	instances, err := registry.GetServiceInstances(ctx, serviceName)
 	if err != nil {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/code-sigs/go-box/internal/registry/registry"
+	registry "github.com/code-sigs/go-box/pkg/registry/registry_interface"
 )
 
 type MemoryRegistry struct {

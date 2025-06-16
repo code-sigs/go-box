@@ -6,25 +6,25 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/code-sigs/go-box/internal/registry/registry"
+	"github.com/code-sigs/go-box/pkg/registry/registry_interface"
 	"google.golang.org/grpc/resolver"
 )
 
 type serviceResolver struct {
 	cc       resolver.ClientConn
-	registry registry.Registry
+	registry registry_interface.Registry
 	ctx      context.Context
 	cancel   context.CancelFunc
-	ch       <-chan []*registry.ServiceInstance
+	ch       <-chan []*registry_interface.ServiceInstance
 	sync.Mutex
 	addrs []resolver.Address
 }
 
 type ServiceResolverBuilder struct {
-	Registry registry.Registry
+	Registry registry_interface.Registry
 }
 
-func NewBuilder(reg registry.Registry) resolver.Builder {
+func NewBuilder(reg registry_interface.Registry) resolver.Builder {
 	return &ServiceResolverBuilder{Registry: reg}
 }
 

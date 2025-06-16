@@ -1,4 +1,4 @@
-package registry
+package registry_interface
 
 import "context"
 

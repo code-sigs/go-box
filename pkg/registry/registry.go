@@ -1,12 +1,12 @@
-package registry_factory
+package registry
 
 import (
 	"time"
 
-	"github.com/code-sigs/go-box/internal/registry/etcd"
-	"github.com/code-sigs/go-box/internal/registry/memory"
-	"github.com/code-sigs/go-box/internal/registry/registry"
-	"github.com/code-sigs/go-box/internal/registry/zk"
+	"github.com/code-sigs/go-box/pkg/registry/etcd"
+	"github.com/code-sigs/go-box/pkg/registry/memory"
+	"github.com/code-sigs/go-box/pkg/registry/registry_interface"
+	"github.com/code-sigs/go-box/pkg/registry/zk"
 )
 
 // RegistryType 定义注册中心类型
@@ -37,7 +37,7 @@ type ZkOption struct {
 }
 
 // NewRegistry 根据 opt 创建注册中心，默认 memory
-func NewRegistry(opt *RegistryOption) (registry.Registry, error) {
+func NewRegistry(opt *RegistryOption) (registry_interface.Registry, error) {
 	switch {
 	case opt != nil && opt.Type == EtcdType && opt.Etcd != nil:
 		return etcd.NewEtcdRegistry(opt.Etcd.Endpoints, opt.Etcd.DialTimeout)

@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/code-sigs/go-box/internal/registry/registry"
+	"github.com/code-sigs/go-box/pkg/registry/registry_interface"
 	"github.com/go-zookeeper/zk"
 )
 
@@ -15,7 +15,7 @@ type ZkRegistry struct {
 	conn     *zk.Conn
 	rootPath string
 	mu       sync.Mutex
-	cache    map[string][]*registry.ServiceInstance
+	cache    map[string][]*registry_interface.ServiceInstance
 	cacheMu  sync.RWMutex
 }
 
@@ -28,7 +28,7 @@ func NewZkRegistry(servers []string, rootPath string, timeout time.Duration) (*Z
 	reg := &ZkRegistry{
 		conn:     conn,
 		rootPath: rootPath,
-		cache:    make(map[string][]*registry.ServiceInstance),
+		cache:    make(map[string][]*registry_interface.ServiceInstance),
 	}
 
 	// 初始化根路径
@@ -46,7 +46,7 @@ func (z *ZkRegistry) Name() string {
 	return "go-box-zookeeper"
 }
 
-func (z *ZkRegistry) Register(ctx context.Context, info *registry.ServiceInfo) error {
+func (z *ZkRegistry) Register(ctx context.Context, info *registry_interface.ServiceInfo) error {
 	path := fmt.Sprintf("%s/%s", z.servicePath(info.Name), info.Address)
 	data := []byte(info.Address)
 
@@ -62,13 +62,13 @@ func (z *ZkRegistry) Register(ctx context.Context, info *registry.ServiceInfo) e
 	return err
 }
 
-func (z *ZkRegistry) Unregister(ctx context.Context, info *registry.ServiceInfo) error {
+func (z *ZkRegistry) Unregister(ctx context.Context, info *registry_interface.ServiceInfo) error {
 	path := fmt.Sprintf("%s/%s", z.servicePath(info.Name), info.Address)
 	return z.conn.Delete(path, -1)
 }
 
-func (z *ZkRegistry) Watch(ctx context.Context, serviceName string) (<-chan []*registry.ServiceInstance, error) {
-	ch := make(chan []*registry.ServiceInstance)
+func (z *ZkRegistry) Watch(ctx context.Context, serviceName string) (<-chan []*registry_interface.ServiceInstance, error) {
+	ch := make(chan []*registry_interface.ServiceInstance)
 
 	go func() {
 		defer close(ch)
@@ -79,12 +79,12 @@ func (z *ZkRegistry) Watch(ctx context.Context, serviceName string) (<-chan []*r
 				continue
 			}
 
-			instances := []*registry.ServiceInstance{}
+			instances := []*registry_interface.ServiceInstance{}
 			for _, child := range children {
 				fullPath := fmt.Sprintf("%s/%s", z.servicePath(serviceName), child)
 				data, _, err := z.conn.Get(fullPath)
 				if err == nil {
-					instances = append(instances, &registry.ServiceInstance{
+					instances = append(instances, &registry_interface.ServiceInstance{
 						Address: string(data),
 					})
 				}
@@ -116,12 +116,12 @@ func (z *ZkRegistry) servicePath(service string) string {
 	return fmt.Sprintf("%s/%s", z.rootPath, strings.Trim(service, "/"))
 }
 
-func (z *ZkRegistry) GetServiceInstances(ctx context.Context, serviceName string) ([]*registry.ServiceInstance, error) {
+func (z *ZkRegistry) GetServiceInstances(ctx context.Context, serviceName string) ([]*registry_interface.ServiceInstance, error) {
 	z.cacheMu.RLock()
 	defer z.cacheMu.RUnlock()
 	instances := z.cache[serviceName]
 	// 返回副本，防止外部修改
-	result := make([]*registry.ServiceInstance, len(instances))
+	result := make([]*registry_interface.ServiceInstance, len(instances))
 	copy(result, instances)
 	return result, nil
 }

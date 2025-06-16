@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	registry "github.com/code-sigs/go-box/internal/registry/registry"
+	registry "github.com/code-sigs/go-box/pkg/registry/registry_interface"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 

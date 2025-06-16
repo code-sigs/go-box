@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/code-sigs/go-box/internal/registry/registry"
+	"github.com/code-sigs/go-box/pkg/registry/registry_interface"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -14,7 +14,7 @@ func TestMemoryRegistry_Register_Unregister_Watch(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	info := &registry.ServiceInfo{
+	info := &registry_interface.ServiceInfo{
 		Name:    "test-service",
 		Address: "127.0.0.1:8080",
 		Metadata: map[string]string{

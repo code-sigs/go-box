@@ -76,6 +76,13 @@ func (r *MongoRepository[T, K]) Delete(ctx context.Context, id K) error {
 	return err
 }
 
+// HardDelete 直接从数据库中物理删除文档（非软删除）
+func (r *MongoRepository[T, K]) HardDelete(ctx context.Context, id K) error {
+	filter := bson.M{r.idField: id}
+	_, err := r.collection.DeleteOne(ctx, filter)
+	return err
+}
+
 func (r *MongoRepository[T, K]) List(ctx context.Context) ([]*T, error) {
 	cursor, err := r.collection.Find(ctx, bson.M{"deleted_at": bson.M{"$exists": false}})
 	if err != nil {
@@ -84,6 +91,18 @@ func (r *MongoRepository[T, K]) List(ctx context.Context) ([]*T, error) {
 	var results []*T
 	err = cursor.All(ctx, &results)
 	return results, err
+}
+
+// FindOne 根据复杂条件查询一条记录（排除已软删除的文档）
+func (r *MongoRepository[T, K]) FindOne(ctx context.Context, filter map[string]any) (*T, error) {
+	// 自动排除软删除数据
+	filter["deleted_at"] = bson.M{"$exists": false}
+	var result T
+	err := r.collection.FindOne(ctx, bson.M(filter)).Decode(&result)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, nil
+	}
+	return &result, err
 }
 
 func (r *MongoRepository[T, K]) Find(ctx context.Context, filter map[string]any, sort bson.D) ([]*T, error) {

@@ -7,29 +7,30 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/code-sigs/go-box/internal/registry/registry"
-	. "github.com/code-sigs/go-box/internal/resolver"
-	"github.com/code-sigs/go-box/internal/rpc"
-	"github.com/code-sigs/go-box/pkg/registry_factory"
+	"github.com/code-sigs/go-box/pkg/grpc/rpc"
+	"github.com/code-sigs/go-box/pkg/registry"
+	"github.com/code-sigs/go-box/pkg/registry/registry_interface"
+
+	. "github.com/code-sigs/go-box/pkg/resolver"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/resolver"
 )
 
 type GRPC struct {
-	registry registry.Registry
+	registry registry_interface.Registry
 }
 
 // New 创建一个新的 GRPC 实例
-func New(opts ...registry_factory.RegistryOption) *GRPC {
+func New(opts ...registry.RegistryOption) *GRPC {
 	g := &GRPC{}
 	var err error
-	var opt *registry_factory.RegistryOption
+	var opt *registry.RegistryOption
 	if len(opts) > 0 {
 		opt = &opts[len(opts)-1]
 	} else {
 		opt = nil
 	}
-	g.registry, err = registry_factory.NewRegistry(opt)
+	g.registry, err = registry.NewRegistry(opt)
 	if err != nil {
 		panic("failed to create registry: " + err.Error())
 	}
@@ -67,7 +68,7 @@ func (g *GRPC) ListenAndRegister(serviceName, registerAddress, listenAddress str
 	server := rpc.NewGRPCServer()
 
 	// 注册到注册中心
-	info := &registry.ServiceInfo{
+	info := &registry_interface.ServiceInfo{
 		Name:    serviceName,
 		Address: registerAddress,
 		// 可扩展更多元数据
