@@ -30,9 +30,7 @@ func New(registry registry_interface.Registry) *GRPC {
 }
 
 // GRPC 监听实现（支持优雅关闭）
-func (g *GRPC) Listen(address string, shutdown func())  {
-	
-}) error {
+func (g *GRPC) Listen(address string, shutdown func()) error {
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
 		return err
@@ -80,7 +78,7 @@ func (g *GRPC) ListenAndRegister(serviceName, registerAddress, listenAddress str
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-quit
-			if shutdown != nil {
+		if shutdown != nil {
 			shutdown()
 		}
 		server.GracefulStop()
