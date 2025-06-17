@@ -23,7 +23,7 @@ const (
 
 type RPCError struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Code          int32                  `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Code          int64                  `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
 	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
 	Details       string                 `protobuf:"bytes,3,opt,name=details,proto3" json:"details,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -60,7 +60,7 @@ func (*RPCError) Descriptor() ([]byte, []int) {
 	return file_rpc_error_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *RPCError) GetCode() int32 {
+func (x *RPCError) GetCode() int64 {
 	if x != nil {
 		return x.Code
 	}
@@ -87,7 +87,7 @@ const file_rpc_error_proto_rawDesc = "" +
 	"\n" +
 	"\x0frpc_error.proto\x12\brpcerror\"R\n" +
 	"\bRPCError\x12\x12\n" +
-	"\x04code\x18\x01 \x01(\x05R\x04code\x12\x18\n" +
+	"\x04code\x18\x01 \x01(\x03R\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x18\n" +
 	"\adetails\x18\x03 \x01(\tR\adetailsB\fZ\n" +
 	".;rpcerrorb\x06proto3"

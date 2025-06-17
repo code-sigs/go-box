@@ -45,9 +45,9 @@ func Wrap(e *RPCError) error {
 }
 
 // WrapCode 返回结构化错误，可指定 gRPC code
-func WrapCode(code int32, msg string) error {
+func WrapCode(code int, msg string) error {
 	e := &RPCError{
-		Code:    code,
+		Code:    int64(code),
 		Message: msg,
 	}
 	if code != 0 {

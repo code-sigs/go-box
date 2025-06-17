@@ -10,7 +10,7 @@ import (
 )
 
 type StandardResponse[T any] struct {
-	Code    int32  `json:"code"`
+	Code    int64  `json:"code"`
 	Message string `json:"message"`
 	Details string `json:"details,omitempty"`
 	Data    T      `json:"data,omitempty"`

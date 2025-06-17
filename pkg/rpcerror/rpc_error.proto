@@ -3,7 +3,7 @@ package rpcerror;
 option go_package = ".;rpcerror";
 
 message RPCError {
-  int32 code = 1;
+  int64 code = 1;
   string message = 2;
   string details = 3;
 }
