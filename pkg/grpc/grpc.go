@@ -54,7 +54,7 @@ func (g *GRPC) Listen(address string, shutdown func()) error {
 
 // GRPC 注册及监听接口
 // ListenAndServe 启动 GRPC 服务并监听指定地址
-func (g *GRPC) ListenAndRegister(serviceName, host string, port int, listen func(string), shutdown func()) error {
+func (g *GRPC) ListenAndRegister(serviceName, host string, port int, register func(*grpc.Server, string), shutdown func()) error {
 	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
 	if err != nil {
 		return err
@@ -76,8 +76,8 @@ func (g *GRPC) ListenAndRegister(serviceName, host string, port int, listen func
 		return err
 	}
 	defer g.registry.Unregister(context.Background(), info)
-	if listen != nil {
-		listen(fmt.Sprintf("%s:%d", host, port))
+	if register != nil {
+		register(server, fmt.Sprintf("%s:%d", host, port))
 	}
 	// 优雅关闭
 	quit := make(chan os.Signal, 1)
