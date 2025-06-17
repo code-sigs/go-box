@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"os"
 	"os/signal"
@@ -53,17 +54,20 @@ func (g *GRPC) Listen(address string, shutdown func()) error {
 
 // GRPC 注册及监听接口
 // ListenAndServe 启动 GRPC 服务并监听指定地址
-func (g *GRPC) ListenAndRegister(serviceName, registerAddress, listenAddress string, shutdown func()) error {
-	lis, err := net.Listen("tcp", listenAddress)
+func (g *GRPC) ListenAndRegister(serviceName, host string, port int, listen func(string), shutdown func()) error {
+	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
 	if err != nil {
 		return err
 	}
 	server := rpc.NewGRPCServer()
-
+	add := lis.Addr().(*net.TCPAddr)
+	if add.Port != port {
+		port = add.Port
+	}
 	// 注册到注册中心
 	info := &registry_interface.ServiceInfo{
 		Name:    serviceName,
-		Address: registerAddress,
+		Address: fmt.Sprintf("%s:%d", host, port),
 		// 可扩展更多元数据
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -72,7 +76,9 @@ func (g *GRPC) ListenAndRegister(serviceName, registerAddress, listenAddress str
 		return err
 	}
 	defer g.registry.Unregister(context.Background(), info)
-
+	if listen != nil {
+		listen(fmt.Sprintf("%s:%d", host, port))
+	}
 	// 优雅关闭
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
