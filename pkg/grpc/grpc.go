@@ -8,7 +8,6 @@ import (
 	"syscall"
 
 	"github.com/code-sigs/go-box/pkg/grpc/rpc"
-	"github.com/code-sigs/go-box/pkg/registry"
 	"github.com/code-sigs/go-box/pkg/registry/registry_interface"
 
 	. "github.com/code-sigs/go-box/pkg/resolver"
@@ -21,18 +20,9 @@ type GRPC struct {
 }
 
 // New 创建一个新的 GRPC 实例
-func New(opts ...registry.RegistryOption) *GRPC {
-	g := &GRPC{}
-	var err error
-	var opt *registry.RegistryOption
-	if len(opts) > 0 {
-		opt = &opts[len(opts)-1]
-	} else {
-		opt = nil
-	}
-	g.registry, err = registry.NewRegistry(opt)
-	if err != nil {
-		panic("failed to create registry: " + err.Error())
+func New(registry registry_interface.Registry) *GRPC {
+	g := &GRPC{
+		registry: registry,
 	}
 	builder := &ServiceResolverBuilder{Registry: g.registry}
 	resolver.Register(builder)
@@ -40,7 +30,9 @@ func New(opts ...registry.RegistryOption) *GRPC {
 }
 
 // GRPC 监听实现（支持优雅关闭）
-func (g *GRPC) Listen(address string) error {
+func (g *GRPC) Listen(address string, shutdown func())  {
+	
+}) error {
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
 		return err
@@ -52,6 +44,9 @@ func (g *GRPC) Listen(address string) error {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-quit
+		if shutdown != nil {
+			shutdown()
+		}
 		server.GracefulStop()
 	}()
 
@@ -60,7 +55,7 @@ func (g *GRPC) Listen(address string) error {
 
 // GRPC 注册及监听接口
 // ListenAndServe 启动 GRPC 服务并监听指定地址
-func (g *GRPC) ListenAndRegister(serviceName, registerAddress, listenAddress string) error {
+func (g *GRPC) ListenAndRegister(serviceName, registerAddress, listenAddress string, shutdown func()) error {
 	lis, err := net.Listen("tcp", listenAddress)
 	if err != nil {
 		return err
@@ -85,6 +80,9 @@ func (g *GRPC) ListenAndRegister(serviceName, registerAddress, listenAddress str
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-quit
+			if shutdown != nil {
+			shutdown()
+		}
 		server.GracefulStop()
 	}()
 
