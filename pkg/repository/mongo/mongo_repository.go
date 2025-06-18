@@ -122,6 +122,30 @@ func (r *MongoRepository[T, K]) Update(ctx context.Context, entity *T) error {
 	return err
 }
 
+// UpdateFields 只更新指定字段
+func (r *MongoRepository[T, K]) UpdateFields(ctx context.Context, id K, updates map[string]any) error {
+	// 自动添加 updated_at 字段（如果结构体中包含）
+	if _, ok := updates["updated_at"]; !ok {
+		updates["updated_at"] = time.Now()
+	}
+
+	// 构造 filter 和 update 操作
+	filter := bson.M{r.idField: id}
+	update := bson.M{"$set": updates}
+
+	// 执行更新
+	result, err := r.collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	}
+
+	if result.MatchedCount == 0 {
+		return errors.New("未找到匹配的文档")
+	}
+
+	return nil
+}
+
 func (r *MongoRepository[T, K]) Delete(ctx context.Context, id K) error {
 	filter := bson.M{r.idField: id}
 	update := bson.M{"$set": bson.M{"deleted_at": time.Now()}}
