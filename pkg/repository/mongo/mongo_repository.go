@@ -90,6 +90,24 @@ func (r *MongoRepository[T, K]) Create(ctx context.Context, entity *T) error {
 	return err
 }
 
+// CreateMany 批量插入多个文档
+func (r *MongoRepository[T, K]) CreateMany(ctx context.Context, entities []*T) error {
+	if len(entities) == 0 {
+		return nil // 空列表直接返回
+	}
+
+	// 为每个实体设置时间戳，并构造 interface{} 切片
+	var docs []interface{}
+	for _, entity := range entities {
+		setTimestamps(entity, true)
+		docs = append(docs, entity)
+	}
+
+	// 插入数据库
+	_, err := r.collection.InsertMany(ctx, docs)
+	return err
+}
+
 func (r *MongoRepository[T, K]) GetByID(ctx context.Context, id K) (*T, error) {
 	filter := bson.M{r.idField: id, "deleted_at": bson.M{"$exists": false}}
 	var result T

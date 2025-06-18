@@ -8,6 +8,7 @@ import (
 type BaseRepository[T any, K comparable] interface {
 	CreateIndex(ctx context.Context, keys map[string]int, optionsMap map[string]any) (string, error)
 	Create(ctx context.Context, entity *T) error
+	CreateMany(ctx context.Context, entities []*T) error
 	GetByID(ctx context.Context, id K) (*T, error)
 	Update(ctx context.Context, entity *T) error
 	Delete(ctx context.Context, id K) error
