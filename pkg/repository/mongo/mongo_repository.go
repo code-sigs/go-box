@@ -31,6 +31,59 @@ func NewMongoRepository[T any, K comparable](db *mongo.Database) *MongoRepositor
 	}
 }
 
+// CreateIndexGeneric 创建 MongoDB 索引
+// 字段与排序方式 {"email": 1, "created_at": -1}
+// 索引选项 {"unique": true, "background": true}
+func (r *MongoRepository[T, K]) CreateIndex(ctx context.Context, keys map[string]int, optionsMap map[string]any) (string, error) {
+	// 构建索引字段 bson.D
+	var indexKeys bson.D
+	for key, order := range keys {
+		indexKeys = append(indexKeys, bson.E{Key: key, Value: order})
+	}
+
+	// 构建索引选项 bson.M
+	var indexOpts *options.IndexOptions
+	if len(optionsMap) > 0 {
+		indexOpts = new(options.IndexOptions)
+		for k, v := range optionsMap {
+			switch k {
+			case "unique":
+				if b, ok := v.(bool); ok {
+					indexOpts.SetUnique(b)
+				}
+			case "background":
+				if b, ok := v.(bool); ok {
+					indexOpts.SetBackground(b)
+				}
+			case "name":
+				if name, ok := v.(string); ok {
+					indexOpts.SetName(name)
+				}
+			case "expireAfterSeconds":
+				if sec, ok := v.(int); ok {
+					indexOpts.SetExpireAfterSeconds(int32(sec))
+				}
+			case "sparse":
+				if b, ok := v.(bool); ok {
+					indexOpts.SetSparse(b)
+				}
+			case "storageEngine":
+				if engine, ok := v.(bson.M); ok {
+					indexOpts.SetStorageEngine(engine)
+				}
+			default:
+			}
+		}
+	}
+
+	model := mongo.IndexModel{
+		Keys:    indexKeys,
+		Options: indexOpts,
+	}
+
+	return r.collection.Indexes().CreateOne(ctx, model)
+}
+
 func (r *MongoRepository[T, K]) Create(ctx context.Context, entity *T) error {
 	setTimestamps(entity, true)
 	_, err := r.collection.InsertOne(ctx, entity)
@@ -105,32 +158,72 @@ func (r *MongoRepository[T, K]) FindOne(ctx context.Context, filter map[string]a
 	return &result, err
 }
 
-func (r *MongoRepository[T, K]) Find(ctx context.Context, filter map[string]any, sort bson.D) ([]*T, error) {
+func (r *MongoRepository[T, K]) Find(ctx context.Context, filter map[string]any, sort map[string]int) ([]*T, error) {
+	// 自动添加未删除条件
 	filter["deleted_at"] = bson.M{"$exists": false}
-	opts := options.Find().SetSort(sort)
-	cursor, err := r.collection.Find(ctx, bson.M(filter), opts)
+
+	// 将 map[string]int 转换为 bson.D
+	var bsonSort bson.D
+	for key, order := range sort {
+		bsonSort = append(bsonSort, bson.E{Key: key, Value: order})
+	}
+
+	// 设置查询选项
+	opts := options.Find().SetSort(bsonSort)
+
+	// 执行查询
+	cursor, err := r.collection.Find(ctx, filter, opts)
 	if err != nil {
 		return nil, err
 	}
+
+	// 解析结果
 	var results []*T
 	err = cursor.All(ctx, &results)
 	return results, err
 }
 
-func (r *MongoRepository[T, K]) Paginate(ctx context.Context, offset int, limit int, filter map[string]any, sort bson.D) ([]*T, int64, error) {
+func (r *MongoRepository[T, K]) Paginate(
+	ctx context.Context,
+	offset int,
+	limit int,
+	filter map[string]any,
+	sort map[string]int,
+) ([]*T, int64, error) {
+	// 自动添加未删除条件
 	filter["deleted_at"] = bson.M{"$exists": false}
-	total, err := r.collection.CountDocuments(ctx, bson.M(filter))
+
+	// 将 map[string]int 转换为 bson.D
+	var bsonSort bson.D
+	for key, order := range sort {
+		bsonSort = append(bsonSort, bson.E{Key: key, Value: order})
+	}
+
+	// 统计总数
+	total, err := r.collection.CountDocuments(ctx, filter)
 	if err != nil {
 		return nil, 0, err
 	}
-	opts := options.Find().SetSkip(int64(offset)).SetLimit(int64(limit)).SetSort(sort)
-	cursor, err := r.collection.Find(ctx, bson.M(filter), opts)
+
+	// 设置分页与排序选项
+	opts := options.Find().
+		SetSkip(int64(offset)).
+		SetLimit(int64(limit)).
+		SetSort(bsonSort)
+
+	// 执行查询
+	cursor, err := r.collection.Find(ctx, filter, opts)
 	if err != nil {
 		return nil, 0, err
 	}
+
+	// 解析结果
 	var results []*T
-	err = cursor.All(ctx, &results)
-	return results, total, err
+	if err := cursor.All(ctx, &results); err != nil {
+		return nil, 0, err
+	}
+
+	return results, total, nil
 }
 
 func (r *MongoRepository[T, K]) Count(ctx context.Context, filter map[string]any) (int64, error) {
