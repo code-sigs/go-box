@@ -11,7 +11,9 @@ type BaseRepository[T any, K comparable] interface {
 	GetByID(ctx context.Context, id K) (*T, error)
 	Update(ctx context.Context, entity *T) error
 	Delete(ctx context.Context, id K) error
+	DeleteMany(ctx context.Context, id []K) error
 	HardDelete(ctx context.Context, id K) error
+	HardDeleteMany(ctx context.Context, id K) error
 	List(ctx context.Context) ([]*T, error)
 	FindOne(ctx context.Context, filter map[string]any) (*T, error)
 	Find(ctx context.Context, filter map[string]any, sort map[string]int) ([]*T, error)

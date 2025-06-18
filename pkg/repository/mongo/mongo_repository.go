@@ -129,10 +129,49 @@ func (r *MongoRepository[T, K]) Delete(ctx context.Context, id K) error {
 	return err
 }
 
+// DeleteMany 软删除多个文档，根据传入的 ID 列表进行更新
+func (r *MongoRepository[T, K]) DeleteMany(ctx context.Context, ids []K) error {
+	if len(ids) == 0 {
+		return nil // 空列表直接返回
+	}
+
+	// 构造 filter：匹配多个 ID
+	filter := bson.M{
+		r.idField: bson.M{"$in": ids},
+	}
+
+	// 构造 update：设置 deleted_at
+	update := bson.M{
+		"$set": bson.M{
+			"deleted_at": time.Now(),
+		},
+	}
+
+	// 执行更新
+	_, err := r.collection.UpdateMany(ctx, filter, update)
+	return err
+}
+
 // HardDelete 直接从数据库中物理删除文档（非软删除）
 func (r *MongoRepository[T, K]) HardDelete(ctx context.Context, id K) error {
 	filter := bson.M{r.idField: id}
 	_, err := r.collection.DeleteOne(ctx, filter)
+	return err
+}
+
+// HardDeleteMany 直接物理删除多个文档，根据传入的 ID 列表进行删除
+func (r *MongoRepository[T, K]) HardDeleteMany(ctx context.Context, ids []K) error {
+	if len(ids) == 0 {
+		return nil // 空列表直接返回
+	}
+
+	// 构造 filter：匹配多个 ID
+	filter := bson.M{
+		r.idField: bson.M{"$in": ids},
+	}
+
+	// 执行删除
+	_, err := r.collection.DeleteMany(ctx, filter)
 	return err
 }
 
