@@ -32,7 +32,7 @@ func NewMongoRepository[T any, K comparable](db *mongo.Database) *MongoRepositor
 }
 
 // CreateIndexGeneric 创建 MongoDB 索引
-// 字段与排序方式 {"email": 1, "created_at": -1}
+// 字段与排序方式 {"email": 1, "createdAt": -1}
 // 索引选项 {"unique": true, "background": true}
 func (r *MongoRepository[T, K]) CreateIndex(ctx context.Context, keys map[string]int, optionsMap map[string]any) (string, error) {
 	// 构建索引字段 bson.D
@@ -109,7 +109,7 @@ func (r *MongoRepository[T, K]) CreateMany(ctx context.Context, entities []*T) e
 }
 
 func (r *MongoRepository[T, K]) GetByID(ctx context.Context, id K) (*T, error) {
-	filter := bson.M{r.idField: id, "deleted_at": bson.M{"$exists": false}}
+	filter := bson.M{r.idField: id, "deletedAt": bson.M{"$exists": false}}
 	var result T
 	err := r.collection.FindOne(ctx, filter).Decode(&result)
 	if errors.Is(err, mongo.ErrNoDocuments) {
@@ -142,9 +142,9 @@ func (r *MongoRepository[T, K]) Update(ctx context.Context, entity *T) error {
 
 // UpdateFields 只更新指定字段
 func (r *MongoRepository[T, K]) UpdateFields(ctx context.Context, id K, updates map[string]any) error {
-	// 自动添加 updated_at 字段（如果结构体中包含）
-	if _, ok := updates["updated_at"]; !ok {
-		updates["updated_at"] = time.Now()
+	// 自动添加 updatedAt 字段（如果结构体中包含）
+	if _, ok := updates["updatedAt"]; !ok {
+		updates["updatedAt"] = time.Now()
 	}
 
 	// 构造 filter 和 update 操作
@@ -166,7 +166,7 @@ func (r *MongoRepository[T, K]) UpdateFields(ctx context.Context, id K, updates 
 
 func (r *MongoRepository[T, K]) Delete(ctx context.Context, id K) error {
 	filter := bson.M{r.idField: id}
-	update := bson.M{"$set": bson.M{"deleted_at": time.Now()}}
+	update := bson.M{"$set": bson.M{"deletedAt": time.Now()}}
 	_, err := r.collection.UpdateOne(ctx, filter, update)
 	return err
 }
@@ -182,10 +182,10 @@ func (r *MongoRepository[T, K]) DeleteMany(ctx context.Context, ids []K) error {
 		r.idField: bson.M{"$in": ids},
 	}
 
-	// 构造 update：设置 deleted_at
+	// 构造 update：设置 deletedAt
 	update := bson.M{
 		"$set": bson.M{
-			"deleted_at": time.Now(),
+			"deletedAt": time.Now(),
 		},
 	}
 
@@ -218,7 +218,7 @@ func (r *MongoRepository[T, K]) HardDeleteMany(ctx context.Context, ids []K) err
 }
 
 func (r *MongoRepository[T, K]) List(ctx context.Context) ([]*T, error) {
-	cursor, err := r.collection.Find(ctx, bson.M{"deleted_at": bson.M{"$exists": false}})
+	cursor, err := r.collection.Find(ctx, bson.M{"deletedAt": bson.M{"$exists": false}})
 	if err != nil {
 		return nil, err
 	}
@@ -230,7 +230,7 @@ func (r *MongoRepository[T, K]) List(ctx context.Context) ([]*T, error) {
 // FindOne 根据复杂条件查询一条记录（排除已软删除的文档）
 func (r *MongoRepository[T, K]) FindOne(ctx context.Context, filter map[string]any) (*T, error) {
 	// 自动排除软删除数据
-	filter["deleted_at"] = bson.M{"$exists": false}
+	filter["deletedAt"] = bson.M{"$exists": false}
 	var result T
 	err := r.collection.FindOne(ctx, bson.M(filter)).Decode(&result)
 	if errors.Is(err, mongo.ErrNoDocuments) {
@@ -241,7 +241,7 @@ func (r *MongoRepository[T, K]) FindOne(ctx context.Context, filter map[string]a
 
 func (r *MongoRepository[T, K]) Find(ctx context.Context, filter map[string]any, sort map[string]int) ([]*T, error) {
 	// 自动添加未删除条件
-	filter["deleted_at"] = bson.M{"$exists": false}
+	filter["deletedAt"] = bson.M{"$exists": false}
 
 	// 将 map[string]int 转换为 bson.D
 	var bsonSort bson.D
@@ -272,7 +272,7 @@ func (r *MongoRepository[T, K]) Paginate(
 	sort map[string]int,
 ) ([]*T, int64, error) {
 	// 自动添加未删除条件
-	filter["deleted_at"] = bson.M{"$exists": false}
+	filter["deletedAt"] = bson.M{"$exists": false}
 
 	// 将 map[string]int 转换为 bson.D
 	var bsonSort bson.D
@@ -308,7 +308,7 @@ func (r *MongoRepository[T, K]) Paginate(
 }
 
 func (r *MongoRepository[T, K]) Count(ctx context.Context, filter map[string]any) (int64, error) {
-	filter["deleted_at"] = bson.M{"$exists": false}
+	filter["deletedAt"] = bson.M{"$exists": false}
 	return r.collection.CountDocuments(ctx, bson.M(filter))
 }
 
@@ -337,9 +337,9 @@ func setTimestamps[T any](entity *T, isCreate bool) {
 	now := time.Now()
 	for i := range v.NumField() {
 		f := v.Type().Field(i)
-		if f.Tag.Get("bson") == "created_at" && isCreate {
+		if f.Tag.Get("bson") == "createdAt" && isCreate {
 			v.Field(i).Set(reflect.ValueOf(now))
-		} else if f.Tag.Get("bson") == "updated_at" {
+		} else if f.Tag.Get("bson") == "updatedAt" {
 			v.Field(i).Set(reflect.ValueOf(now))
 		}
 	}
