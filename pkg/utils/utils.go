@@ -154,6 +154,11 @@ func ParseTime(s string) *time.Time {
 	return nil
 }
 
+// MillisToTime 将毫秒时间戳转换为 time.Time
+func MillisToTime(millis int64) time.Time {
+	return time.Unix(millis/1000, (millis%1000)*1e6)
+}
+
 // 判断文件或目录是否存在
 func FileExists(path string) bool {
 	_, err := os.Stat(path)
