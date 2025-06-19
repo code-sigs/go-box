@@ -105,9 +105,22 @@ func GetMilliTimestamp() int64 {
 	return time.Now().UnixNano() / 1e6
 }
 
-// 计算字符串 MD5 值
-func MD5Hash(text string) string {
-	hash := md5.Sum([]byte(text))
+// MD5Hash 支持多个字符串拼接后计算 MD5 值
+func MD5Hash(first string, others ...string) string {
+	// 预分配 buffer 容量（减少内存分配）
+	totalLen := len(first)
+	for _, s := range others {
+		totalLen += len(s)
+	}
+
+	var builder strings.Builder
+	builder.Grow(totalLen)
+	builder.WriteString(first)
+	for _, s := range others {
+		builder.WriteString(s)
+	}
+
+	hash := md5.Sum([]byte(builder.String()))
 	return hex.EncodeToString(hash[:])
 }
 
