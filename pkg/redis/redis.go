@@ -2,14 +2,15 @@ package redis
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 	"time"
 )
 
 // RedisConfig Redis配置
 type RedisConfig struct {
-	Addrs        []string `mapstructure:"addrs"`        // 地址 host:port
+	Address      []string `mapstructure:"address"`      // 地址 host:port
 	Password     string   `mapstructure:"password"`     // 密码
 	DB           int      `mapstructure:"db"`           // 数据库编号
 	PoolSize     int      `mapstructure:"poolSize"`     // 连接池大小
@@ -24,28 +25,26 @@ type RedisClient struct {
 	client redis.UniversalClient
 }
 
-func NewRedisClient(cfg RedisConfig) (*RedisClient, error) {
+func NewRedisClient(cfg *RedisConfig) (*RedisClient, error) {
 	var rdb redis.UniversalClient
-	if len(cfg.Addrs) > 1 {
+	if len(cfg.Address) > 1 {
 		rdb = redis.NewClusterClient(&redis.ClusterOptions{
-			Addrs:        cfg.Addrs,
+			Addrs:        cfg.Address,
 			Password:     cfg.Password,
 			PoolSize:     cfg.PoolSize,
 			MinIdleConns: cfg.MinIdleConns,
 			ReadTimeout:  time.Duration(cfg.ReadTimeout) * time.Second,
 			WriteTimeout: time.Duration(cfg.WriteTimeout) * time.Second,
-			IdleTimeout:  time.Duration(cfg.IdleTimeout) * time.Second,
 		})
 	} else {
 		rdb = redis.NewClient(&redis.Options{
-			Addr:         cfg.Addrs[0],
+			Addr:         cfg.Address[0],
 			Password:     cfg.Password,
 			DB:           cfg.DB,
 			PoolSize:     cfg.PoolSize,
 			MinIdleConns: cfg.MinIdleConns,
 			ReadTimeout:  time.Duration(cfg.ReadTimeout) * time.Second,
 			WriteTimeout: time.Duration(cfg.WriteTimeout) * time.Second,
-			IdleTimeout:  time.Duration(cfg.IdleTimeout) * time.Second,
 		}) // 测试连接
 	}
 
@@ -100,4 +99,54 @@ func (r *RedisClient) HGetAll(ctx context.Context, key string) (map[string]strin
 // TTL 获取键的剩余生存时间
 func (r *RedisClient) TTL(ctx context.Context, key string) (time.Duration, error) {
 	return r.client.TTL(ctx, key).Result()
+}
+
+func (r *RedisClient) DeletePrefix(ctx context.Context, pattern string) error {
+	const (
+		batchSize = 500  // 每批删除数量
+		scanCount = 1000 // 每次扫描数量
+	)
+
+	var cursor uint64
+	for {
+		// 使用 SCAN 分批次获取键
+		keys, nextCursor, err := r.client.Scan(ctx, cursor, pattern, scanCount).Result()
+		if err != nil {
+			return err
+		}
+
+		// 分批删除
+		for i := 0; i < len(keys); i += batchSize {
+			end := i + batchSize
+			if end > len(keys) {
+				end = len(keys)
+			}
+			if err := r.client.Del(ctx, keys[i:end]...).Err(); err != nil {
+				return err
+			}
+		}
+
+		// 更新游标
+		cursor = nextCursor
+		if cursor == 0 {
+			break
+		}
+	}
+	return nil
+}
+
+func (r *RedisClient) GetUnmarshal(ctx context.Context, key string, out interface{}) error {
+	data, err := r.client.Get(ctx, key).Bytes()
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, out)
+}
+
+func (r *RedisClient) SetMarshal(ctx context.Context, key string, in interface{}, ttl time.Duration) error {
+	jsonData, err := json.Marshal(in)
+	if err != nil {
+		return err
+	}
+	return r.client.Set(ctx, key, jsonData, ttl).Err()
 }

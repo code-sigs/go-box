@@ -3,8 +3,8 @@ module github.com/code-sigs/go-box
 go 1.24
 
 require (
-	github.com/go-redis/redis/v8 v8.11.5
 	github.com/minio/minio-go/v7 v7.0.93
+	github.com/redis/go-redis/v9 v9.10.0
 	go.uber.org/zap v1.27.0
 	google.golang.org/grpc v1.72.2
 )
