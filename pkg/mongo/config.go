@@ -2,8 +2,9 @@ package mongo
 
 import (
 	"context"
-	"github.com/code-sigs/go-box/pkg/logger"
 	"time"
+
+	"github.com/code-sigs/go-box/pkg/logger"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -54,16 +55,16 @@ func New(cfg *MongoConfig) (*mongo.Client, *mongo.Database, error) {
 	// 创建连接
 	client, err := mongo.Connect(ctx, opts)
 	if err != nil {
-		logger.Errorf("Mongo connect failed, %s", err.Error())
+		logger.Errorf(nil, "Mongo connect failed, %s", err.Error())
 		return nil, nil, err
 	}
 
 	// Ping 主节点确保连接可用
 	if err := client.Ping(ctx, readpref.Primary()); err != nil {
-		logger.Errorf("Mongo ping failed, %s", err.Error())
+		logger.Errorf(nil, "Mongo ping failed, %s", err.Error())
 		return nil, nil, err
 	}
 
-	logger.Infof("Mongo connect success.")
+	logger.Infof(nil, "Mongo connect success.")
 	return client, client.Database(cfg.Database), nil
 }

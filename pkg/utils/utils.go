@@ -172,6 +172,11 @@ func MillisToTime(millis int64) time.Time {
 	return time.Unix(millis/1000, (millis%1000)*1e6)
 }
 
+// SecondsToTime 将秒级时间戳转换为 time.Time
+func SecondsToTime(seconds int64) time.Time {
+	return time.Unix(seconds, 0)
+}
+
 // 判断文件或目录是否存在
 func FileExists(path string) bool {
 	_, err := os.Stat(path)
