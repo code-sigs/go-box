@@ -111,7 +111,8 @@ func (r *MongoRepository[T, K]) CreateMany(ctx context.Context, entities []*T) e
 }
 
 func (r *MongoRepository[T, K]) GetByID(ctx context.Context, id K) (*T, error) {
-	filter := bson.M{r.idField: id, "deletedAt": bson.M{"$exists": false}}
+	filter := bson.M{r.idField: id}
+	ApplyUnDeletedFilter(filter)
 	var result T
 	err := r.collection.FindOne(ctx, filter).Decode(&result)
 	if errors.Is(err, mongo.ErrNoDocuments) {
@@ -220,7 +221,9 @@ func (r *MongoRepository[T, K]) HardDeleteMany(ctx context.Context, ids []K) err
 }
 
 func (r *MongoRepository[T, K]) List(ctx context.Context) ([]*T, error) {
-	cursor, err := r.collection.Find(ctx, bson.M{"deletedAt": bson.M{"$exists": false}})
+	filter := bson.M{}
+	ApplyUnDeletedFilter(filter)
+	cursor, err := r.collection.Find(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +235,7 @@ func (r *MongoRepository[T, K]) List(ctx context.Context) ([]*T, error) {
 // FindOne 根据复杂条件查询一条记录（排除已软删除的文档）
 func (r *MongoRepository[T, K]) FindOne(ctx context.Context, filter map[string]any) (*T, error) {
 	// 自动排除软删除数据
-	filter["deletedAt"] = bson.M{"$exists": false}
+	ApplyUnDeletedFilter(filter)
 	var result T
 	err := r.collection.FindOne(ctx, bson.M(filter)).Decode(&result)
 	if errors.Is(err, mongo.ErrNoDocuments) {
@@ -243,8 +246,7 @@ func (r *MongoRepository[T, K]) FindOne(ctx context.Context, filter map[string]a
 
 func (r *MongoRepository[T, K]) Find(ctx context.Context, filter map[string]any, sort map[string]int) ([]*T, error) {
 	// 自动添加未删除条件
-	filter["deletedAt"] = bson.M{"$exists": false}
-
+	ApplyUnDeletedFilter(filter)
 	// 将 map[string]int 转换为 bson.D
 	var bsonSort bson.D
 	for key, order := range sort {
@@ -274,8 +276,7 @@ func (r *MongoRepository[T, K]) Paginate(
 	sort map[string]int,
 ) ([]*T, int64, error) {
 	// 自动添加未删除条件
-	filter["deletedAt"] = bson.M{"$exists": false}
-
+	ApplyUnDeletedFilter(filter)
 	// 将 map[string]int 转换为 bson.D
 	var bsonSort bson.D
 	for key, order := range sort {
@@ -310,7 +311,7 @@ func (r *MongoRepository[T, K]) Paginate(
 }
 
 func (r *MongoRepository[T, K]) Count(ctx context.Context, filter map[string]any) (int64, error) {
-	filter["deletedAt"] = bson.M{"$exists": false}
+	ApplyUnDeletedFilter(filter)
 	return r.collection.CountDocuments(ctx, bson.M(filter))
 }
 
@@ -357,4 +358,12 @@ func toSnakeCase(s string) string {
 		result = append(result, r)
 	}
 	return strings.ToLower(string(result))
+}
+
+func ApplyUnDeletedFilter(filter bson.M) bson.M {
+	filter["$or"] = []bson.M{
+		{"deletedAt": nil},
+		{"deletedAt": bson.M{"$exists": false}},
+	}
+	return filter
 }
