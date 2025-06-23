@@ -1,12 +1,14 @@
 package logger
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/code-sigs/go-box/pkg/trace"
 	rotatelogs "github.com/lestrrat-go/file-rotatelogs"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -123,14 +125,43 @@ func parseLevel(level string) zapcore.Level {
 	}
 }
 
-// 结构化日志
-func Debugw(msg string, kvs ...interface{}) { zlogger.Sugar().Debugw(msg, kvs...) }
-func Infow(msg string, kvs ...interface{})  { zlogger.Sugar().Infow(msg, kvs...) }
-func Warnw(msg string, kvs ...interface{})  { zlogger.Sugar().Warnw(msg, kvs...) }
-func Errorw(msg string, kvs ...interface{}) { zlogger.Sugar().Errorw(msg, kvs...) }
+func Debugf(ctx context.Context, format string, args ...interface{}) {
+	logWithTrace(ctx).Debugf(format, args...)
+}
 
-// Printf 风格日志
-func Debugf(format string, args ...interface{}) { zlogger.Sugar().Debugf(format, args...) }
-func Infof(format string, args ...interface{})  { zlogger.Sugar().Infof(format, args...) }
-func Warnf(format string, args ...interface{})  { zlogger.Sugar().Warnf(format, args...) }
-func Errorf(format string, args ...interface{}) { zlogger.Sugar().Errorf(format, args...) }
+func Infof(ctx context.Context, format string, args ...interface{}) {
+	logWithTrace(ctx).Infof(format, args...)
+}
+
+func Warnf(ctx context.Context, format string, args ...interface{}) {
+	logWithTrace(ctx).Warnf(format, args...)
+}
+
+func Errorf(ctx context.Context, format string, args ...interface{}) {
+	logWithTrace(ctx).Errorf(format, args...)
+}
+
+func Debugw(ctx context.Context, msg string, kvs ...interface{}) {
+	logWithTrace(ctx).Debugw(msg, kvs...)
+}
+
+func Infow(ctx context.Context, msg string, kvs ...interface{}) {
+	logWithTrace(ctx).Infow(msg, kvs...)
+}
+
+func Warnw(ctx context.Context, msg string, kvs ...interface{}) {
+	logWithTrace(ctx).Warnw(msg, kvs...)
+}
+
+func Errorw(ctx context.Context, msg string, kvs ...interface{}) {
+	logWithTrace(ctx).Errorw(msg, kvs...)
+}
+
+// 提取 traceID 并注入到日志中
+func logWithTrace(ctx context.Context) *zap.SugaredLogger {
+	traceID := trace.GetTraceID(ctx)
+	if traceID != "" {
+		return zlogger.Sugar().With("traceID", traceID)
+	}
+	return zlogger.Sugar()
+}

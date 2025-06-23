@@ -18,6 +18,9 @@ func WithNewTraceID(ctx context.Context) context.Context {
 }
 
 func GetTraceID(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
 	val := ctx.Value(traceKey)
 	if val != nil {
 		if id, ok := val.(string); ok {
