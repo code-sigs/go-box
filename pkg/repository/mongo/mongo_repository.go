@@ -21,9 +21,11 @@ type MongoRepository[T any, K comparable] struct {
 // NewMongoRepository 创建新的 MongoRepository，自动推导集合名。
 func NewMongoRepository[T any, K comparable](db *mongo.Database) *MongoRepository[T, K] {
 	var entity T
-	typeName := reflect.TypeOf(entity).String()
-	typeName = strings.TrimPrefix(typeName, "*")
-	collectionName := toSnakeCase(typeName)
+	t := reflect.TypeOf(entity)
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	collectionName := toSnakeCase(t.Name())
 	collection := db.Collection(collectionName)
 	return &MongoRepository[T, K]{
 		collection: collection,
