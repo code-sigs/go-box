@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"github.com/mozillazg/go-pinyin"
 	"math/big"
 	"net"
 	"os"
@@ -192,4 +193,22 @@ func IsNumeric(s string) bool {
 // 获取当前工作目录
 func GetCurrentDir() (string, error) {
 	return filepath.Abs(".")
+}
+
+// ToPinyinFull 将中文字符串转换为拼音全拼（无声调，拼音全部小写，连续字符串）
+// 输入: 中文字符串
+// 输出: 拼音字符串（全拼，连续，无空格）
+func ToPinyinFull(s string) string {
+	a := pinyin.NewArgs()
+	a.Style = pinyin.Normal
+
+	pys := pinyin.Pinyin(s, a)
+
+	var builder strings.Builder
+	for _, pysArr := range pys {
+		if len(pysArr) > 0 {
+			builder.WriteString(pysArr[0])
+		}
+	}
+	return builder.String()
 }
