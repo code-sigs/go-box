@@ -270,7 +270,7 @@ func (r *MongoRepository[T, K]) Find(ctx context.Context, filter map[string]any,
 
 func (r *MongoRepository[T, K]) Paginate(
 	ctx context.Context,
-	offset int,
+	page int,
 	limit int,
 	filter map[string]any,
 	sort map[string]int,
@@ -288,10 +288,12 @@ func (r *MongoRepository[T, K]) Paginate(
 	if err != nil {
 		return nil, 0, err
 	}
-
+	if page > 0 {
+		page = page - 1
+	}
 	// 设置分页与排序选项
 	opts := options.Find().
-		SetSkip(int64(offset)).
+		SetSkip(int64(page * limit)).
 		SetLimit(int64(limit)).
 		SetSort(bsonSort)
 
