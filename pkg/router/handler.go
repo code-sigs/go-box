@@ -34,7 +34,7 @@ func GenericGRPCHandler(grpcFunc any, ctxInjector ContextInjector) gin.HandlerFu
 	fnType := fnVal.Type()
 
 	return func(c *gin.Context) {
-		if fnType.Kind() != reflect.Func || fnType.NumIn() != 2 || fnType.NumOut() != 2 {
+		if fnType.Kind() != reflect.Func || fnType.NumIn() < 2 || fnType.NumOut() != 2 {
 			c.JSON(http.StatusInternalServerError, StandardResponse[any]{Code: 500, Message: "invalid grpcFunc signature"})
 			return
 		}
