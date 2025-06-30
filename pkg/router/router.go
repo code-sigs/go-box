@@ -2,9 +2,11 @@ package router
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
+	"reflect"
 	"strings"
 	"syscall"
 	"time"
@@ -89,6 +91,55 @@ func (r *Router) Group(name string, handlers ...gin.HandlerFunc) *RouterGroup {
 // Register 注册一个 gRPC 方法与其绑定路径
 func (r *Router) Register(path string, grpcFunc any) {
 	h := GenericGRPCHandler(grpcFunc, r.injector)
+	r.routes = append(r.routes, routeEntry{
+		path:    path,
+		handler: h,
+	})
+}
+
+func (r *RouterGroup) RegisterRPCClient(path string, grpcFunc any) {
+	h := GenericGRPCHandler(func(ctx context.Context, req any) (any, error) {
+		fnVal := reflect.ValueOf(grpcFunc)
+		fnType := fnVal.Type()
+
+		// 函数必须至少有两个入参和两个出参
+		if fnType.Kind() != reflect.Func ||
+			fnType.NumIn() < 2 || // 允许有变参或额外参数
+			fnType.NumOut() != 2 ||
+			!fnType.In(0).Implements(reflect.TypeOf((*context.Context)(nil)).Elem()) ||
+			!fnType.Out(1).Implements(reflect.TypeOf((*error)(nil)).Elem()) {
+			return nil, fmt.Errorf("grpcFunc must be func(context.Context, *T, ...any) (any, error)")
+		}
+
+		// 处理参数
+		in := []reflect.Value{reflect.ValueOf(ctx)}
+
+		// 检查 req 类型
+		reqVal := reflect.ValueOf(req)
+		expectedReqType := fnType.In(1)
+		if !reqVal.Type().AssignableTo(expectedReqType) {
+			return nil, fmt.Errorf("request type mismatch: expect %v, got %v", expectedReqType, reqVal.Type())
+		}
+		in = append(in, reqVal)
+
+		// 处理可选参数，填充默认零值（如 grpc.CallOption）
+		for i := 2; i < fnType.NumIn(); i++ {
+			argType := fnType.In(i)
+			in = append(in, reflect.Zero(argType)) // 默认 nil、0、空切片等
+		}
+
+		// 调用 grpcFunc
+		results := fnVal.Call(in)
+
+		resp := results[0].Interface()
+
+		var err error
+		if !results[1].IsNil() {
+			err = results[1].Interface().(error)
+		}
+		return resp, err
+	}, r.injector)
+
 	r.routes = append(r.routes, routeEntry{
 		path:    path,
 		handler: h,
