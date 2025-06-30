@@ -22,6 +22,14 @@ type Router struct {
 	routes      []routeEntry
 	proxyHeader []string
 	middlewares []gin.HandlerFunc // 新增：用户自定义中间件
+	group       []*RouterGroup
+}
+
+type RouterGroup struct {
+	name     string
+	handlers []gin.HandlerFunc
+	routes   []routeEntry
+	injector func(c *gin.Context, ctx context.Context) context.Context
 }
 
 // New 创建一个新的 Box 实例
@@ -67,8 +75,27 @@ func (r *Router) injector(c *gin.Context, ctx context.Context) context.Context {
 	return ctx
 }
 
+func (r *Router) Group(name string, handlers ...gin.HandlerFunc) *RouterGroup {
+	group := &RouterGroup{
+		name:     name,
+		handlers: handlers,
+		routes:   []routeEntry{},
+		injector: r.injector,
+	}
+	r.group = append(r.group, group)
+	return group
+}
+
 // Register 注册一个 gRPC 方法与其绑定路径
 func (r *Router) Register(path string, grpcFunc any) {
+	h := GenericGRPCHandler(grpcFunc, r.injector)
+	r.routes = append(r.routes, routeEntry{
+		path:    path,
+		handler: h,
+	})
+}
+
+func (r *RouterGroup) Register(path string, grpcFunc any) {
 	h := GenericGRPCHandler(grpcFunc, r.injector)
 	r.routes = append(r.routes, routeEntry{
 		path:    path,
@@ -86,7 +113,12 @@ func (r *Router) Run(addr string, shutdown func()) error {
 	for _, route := range r.routes {
 		engine.POST(route.path, route.handler)
 	}
-
+	for _, group := range r.group {
+		groupEngine := engine.Group(group.name, group.handlers...)
+		for _, route := range group.routes {
+			groupEngine.POST(route.path, route.handler)
+		}
+	}
 	srv := &http.Server{
 		Addr:    addr,
 		Handler: engine,
