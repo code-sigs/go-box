@@ -96,6 +96,26 @@ func (r *RedisClient) HGetAll(ctx context.Context, key string) (map[string]strin
 	return r.client.HGetAll(ctx, key).Result()
 }
 
+func (r *RedisClient) ZAdd(ctx context.Context, key string, members ...redis.Z) (int64, error) {
+	return r.client.ZAdd(ctx, key, members...).Result()
+}
+
+func (r *RedisClient) ZRem(ctx context.Context, key string, members ...interface{}) (int64, error) {
+	return r.client.ZRem(ctx, key, members...).Result()
+}
+
+func (r *RedisClient) ZRangeWithScores(ctx context.Context, key string, start, stop int64) ([]redis.Z, error) {
+	return r.client.ZRangeWithScores(ctx, key, start, stop).Result()
+}
+
+func (r *RedisClient) ZCard(ctx context.Context, key string) (int64, error) {
+	return r.client.ZCard(ctx, key).Result()
+}
+
+func (r *RedisClient) ZCount(ctx context.Context, key, min, max string) (int64, error) {
+	return r.client.ZCount(ctx, key, min, max).Result()
+}
+
 // TTL 获取键的剩余生存时间
 func (r *RedisClient) TTL(ctx context.Context, key string) (time.Duration, error) {
 	return r.client.TTL(ctx, key).Result()
