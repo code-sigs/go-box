@@ -116,6 +116,18 @@ func (r *RedisClient) ZCount(ctx context.Context, key, min, max string) (int64, 
 	return r.client.ZCount(ctx, key, min, max).Result()
 }
 
+func (r *RedisClient) Pipelined(ctx context.Context, fn func(redis.Pipeliner) error) ([]redis.Cmder, error) {
+	return r.client.Pipelined(ctx, fn)
+}
+
+func (r *RedisClient) TxPipelined(ctx context.Context, fn func(redis.Pipeliner) error) ([]redis.Cmder, error) {
+	return r.client.TxPipelined(ctx, fn)
+}
+
+func (r *RedisClient) Pipeline() redis.Pipeliner {
+	return r.client.Pipeline()
+}
+
 // TTL 获取键的剩余生存时间
 func (r *RedisClient) TTL(ctx context.Context, key string) (time.Duration, error) {
 	return r.client.TTL(ctx, key).Result()
