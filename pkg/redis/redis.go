@@ -136,6 +136,31 @@ func (r *RedisClient) Pipeline() redis.Pipeliner {
 	return r.client.Pipeline()
 }
 
+func (r *RedisClient) Eval(ctx context.Context, script string, keys []string, args ...interface{}) (interface{}, error) {
+	return r.client.Eval(ctx, script, keys, args...).Result()
+}
+func (r *RedisClient) EvalSha(ctx context.Context, sha1 string, keys []string, args ...interface{}) (interface{}, error) {
+	return r.client.EvalSha(ctx, sha1, keys, args...).Result()
+}
+func (r *RedisClient) EvalRO(ctx context.Context, script string, keys []string, args ...interface{}) (interface{}, error) {
+	return r.client.EvalRO(ctx, script, keys, args).Result()
+}
+func (r *RedisClient) EvalShaRO(ctx context.Context, sha1 string, keys []string, args ...interface{}) (interface{}, error) {
+	return r.client.EvalShaRO(ctx, sha1, keys, args).Result()
+}
+func (r *RedisClient) ScriptExists(ctx context.Context, hashes ...string) (interface{}, error) {
+	return r.client.ScriptExists(ctx, hashes...).Result()
+}
+func (r *RedisClient) ScriptFlush(ctx context.Context) (interface{}, error) {
+	return r.client.ScriptFlush(ctx).Result()
+}
+func (r *RedisClient) ScriptKill(ctx context.Context) (interface{}, error) {
+	return r.client.ScriptKill(ctx).Result()
+}
+func (r *RedisClient) ScriptLoad(ctx context.Context, script string) (interface{}, error) {
+	return r.client.ScriptLoad(ctx, script).Result()
+}
+
 // TTL 获取键的剩余生存时间
 func (r *RedisClient) TTL(ctx context.Context, key string) (time.Duration, error) {
 	return r.client.TTL(ctx, key).Result()
