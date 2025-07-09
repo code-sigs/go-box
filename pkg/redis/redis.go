@@ -116,6 +116,14 @@ func (r *RedisClient) ZCount(ctx context.Context, key, min, max string) (int64, 
 	return r.client.ZCount(ctx, key, min, max).Result()
 }
 
+func (r *RedisClient) ZScore(ctx context.Context, key string, member string) (float64, error) {
+	return r.client.ZScore(ctx, key, member).Result()
+}
+
+func (r *RedisClient) ZMScore(ctx context.Context, key string, members ...string) ([]float64, error) {
+	return r.client.ZMScore(ctx, key, members...).Result()
+}
+
 func (r *RedisClient) Pipelined(ctx context.Context, fn func(redis.Pipeliner) error) ([]redis.Cmder, error) {
 	return r.client.Pipelined(ctx, fn)
 }
