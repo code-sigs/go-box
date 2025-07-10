@@ -3,8 +3,12 @@ package redis
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
+	"os"
+	"sync"
 	"time"
 )
 
@@ -214,4 +218,111 @@ func (r *RedisClient) SetMarshal(ctx context.Context, key string, in interface{}
 		return err
 	}
 	return r.client.Set(ctx, key, jsonData, ttl).Err()
+}
+
+// RedisLock is a distributed lock implemented with Redis
+type RedisLock struct {
+	mux           sync.Mutex
+	client        *redis.Client
+	key           string
+	value         string
+	expire        time.Duration
+	renewInterval time.Duration
+	cancelFunc    context.CancelFunc
+	wg            sync.WaitGroup
+}
+
+// NewRedisLock creates a new RedisLock instance
+func NewRedisLock(client *redis.Client, key string, expire time.Duration) *RedisLock {
+	host, _ := os.Hostname()
+	value := fmt.Sprintf("%s:%s", host, uuid.New().String())
+
+	return &RedisLock{
+		client:        client,
+		key:           key,
+		value:         value,
+		expire:        expire,
+		renewInterval: expire / 3, // safer than expire/2
+	}
+}
+
+// Lock tries to acquire the lock
+func (l *RedisLock) Lock() (bool, error) {
+	l.mux.Lock()
+	defer l.mux.Unlock()
+	ctx := context.Background()
+	status, err := l.client.SetArgs(ctx, l.key, l.value, redis.SetArgs{
+		Mode: "NX",
+		TTL:  l.expire,
+	}).Result()
+	if err != nil || status != "OK" {
+		return false, err
+	}
+
+	lockCtx, cancel := context.WithCancel(ctx)
+	l.cancelFunc = cancel
+	l.wg.Add(1)
+	go l.startAutoRenew(lockCtx)
+
+	return true, nil
+}
+
+// Unlock safely releases the lock
+func (l *RedisLock) Unlock() (bool, error) {
+	l.mux.Lock()
+	defer l.mux.Unlock()
+
+	if l.cancelFunc == nil {
+		return false, nil // already unlocked
+	}
+
+	l.cancelFunc()
+	l.cancelFunc = nil
+	l.wg.Wait()
+
+	luaScript := `
+		if redis.call("GET", KEYS[1]) == ARGV[1] then
+			return redis.call("DEL", KEYS[1])
+		else
+			return 0
+		end
+	`
+	ctx := context.Background()
+	for i := 0; i < 3; i++ {
+		res, err := l.client.Eval(ctx, luaScript, []string{l.key}, l.value).Result()
+		if err == nil {
+			if v, ok := res.(int64); ok && v == 1 {
+				return true, nil
+			}
+			return false, nil
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	return false, errors.New("failed to release lock after retries")
+}
+
+// startAutoRenew periodically renews the lock TTL
+func (l *RedisLock) startAutoRenew(ctx context.Context) {
+	defer l.wg.Done()
+
+	ticker := time.NewTicker(l.renewInterval)
+	defer ticker.Stop()
+
+	luaScript := `
+		if redis.call("GET", KEYS[1]) == ARGV[1] then
+			return redis.call("PEXPIRE", KEYS[1], ARGV[2])
+		else
+			return 0
+		end
+	`
+
+	for {
+		select {
+		case <-ticker.C:
+			_, _ = l.client.Eval(ctx, luaScript, []string{l.key}, l.value, int(l.expire.Milliseconds())).Result()
+		case <-ctx.Done():
+			return
+		}
+	}
 }
