@@ -222,7 +222,7 @@ func (r *RedisClient) SetMarshal(ctx context.Context, key string, in interface{}
 // RedisLock is a distributed lock implemented with Redis
 type RedisLock struct {
 	mux           sync.Mutex
-	client        *redis.Client
+	client        redis.UniversalClient
 	key           string
 	value         string
 	expire        time.Duration
@@ -232,9 +232,9 @@ type RedisLock struct {
 }
 
 // NewRedisLock creates a new RedisLock instance
-func NewRedisLock(client *redis.Client, key string, expire time.Duration) *RedisLock {
+func NewRedisLock(rdb *RedisClient, key string, expire time.Duration) *RedisLock {
 	return &RedisLock{
-		client:        client,
+		client:        rdb.client,
 		key:           fmt.Sprintf("redis_lock:%s", key),
 		value:         uuid.New().String(),
 		expire:        expire,
