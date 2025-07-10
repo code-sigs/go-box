@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
-	"os"
 	"sync"
 	"time"
 )
@@ -234,13 +233,10 @@ type RedisLock struct {
 
 // NewRedisLock creates a new RedisLock instance
 func NewRedisLock(client *redis.Client, key string, expire time.Duration) *RedisLock {
-	host, _ := os.Hostname()
-	value := fmt.Sprintf("%s:%s", host, uuid.New().String())
-
 	return &RedisLock{
 		client:        client,
-		key:           key,
-		value:         value,
+		key:           fmt.Sprintf("redis_lock:%s", key),
+		value:         uuid.New().String(),
 		expire:        expire,
 		renewInterval: expire / 3, // safer than expire/2
 	}
