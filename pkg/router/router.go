@@ -159,11 +159,11 @@ func (r *RouterGroup) Register(path string, grpcFunc any) {
 func (r *Router) Run(addr string, shutdown func()) error {
 	engine := gin.New()
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"*"},
+		AllowOrigins:     []string{"*"}, // 如果 AllowCredentials: true，请指定域名
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
-		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: true,
+		AllowHeaders:     []string{"*"}, // 允许所有请求头（仅当 AllowCredentials 为 false 时有效）
+		ExposeHeaders:    []string{"*"}, // 并非所有浏览器支持，推荐手动列出
+		AllowCredentials: false,         // 为 true 时，不允许 * 出现在 AllowOrigins、AllowHeaders 中
 		MaxAge:           12 * time.Hour,
 	}))
 	engine.Use(gin.Recovery(), gin.Logger())
