@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc/metadata"
 )
@@ -157,6 +158,14 @@ func (r *RouterGroup) Register(path string, grpcFunc any) {
 // Run 启动 Box 服务，支持用户自定义中间件，并实现优雅关闭
 func (r *Router) Run(addr string, shutdown func()) error {
 	engine := gin.New()
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
 	engine.Use(gin.Recovery(), gin.Logger())
 	for _, mw := range r.middlewares {
 		engine.Use(mw)
