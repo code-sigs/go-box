@@ -291,12 +291,13 @@ func (r *MongoRepository[T, K]) Paginate(
 	if page > 0 {
 		page = page - 1
 	}
-	// 设置分页与排序选项
-	opts := options.Find().
-		SetSkip(int64(page * limit)).
-		SetLimit(int64(limit)).
-		SetSort(bsonSort)
-
+	opts := options.Find()
+	if limit >= 0 {
+		// 设置分页与排序选项
+		opts.SetSkip(int64(page * limit)).
+			SetLimit(int64(limit)).
+			SetSort(bsonSort)
+	}
 	// 执行查询
 	cursor, err := r.collection.Find(ctx, filter, opts)
 	if err != nil {
