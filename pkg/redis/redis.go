@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 )
 
 // RedisConfig Redis配置
@@ -174,7 +175,7 @@ func (r *RedisClient) DeletePrefix(ctx context.Context, pattern string) error {
 		batchSize = 500  // 每批删除数量
 		scanCount = 1000 // 每次扫描数量
 	)
-
+	pattern = pattern + "*"
 	var cursor uint64
 	for {
 		// 使用 SCAN 分批次获取键
