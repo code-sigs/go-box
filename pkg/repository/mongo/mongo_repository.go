@@ -338,22 +338,40 @@ func (r *MongoRepository[T, K]) WithTransaction(ctx context.Context, fn func(txC
 	})
 }
 
-// setTimestamps 统一设置创建时间和更新时间
 func setTimestampsAndID[T any](entity *T, id string) {
 	v := reflect.ValueOf(entity).Elem()
 	now := time.Now()
-	for i := range v.NumField() {
+
+	var idFieldSet bool
+
+	for i := 0; i < v.NumField(); i++ {
 		f := v.Type().Field(i)
 		fieldVal := v.Field(i)
-		if f.Tag.Get("bson") == "createdAt" {
-			v.Field(i).Set(reflect.ValueOf(now))
-		} else if f.Tag.Get("bson") == "updatedAt" {
-			v.Field(i).Set(reflect.ValueOf(now))
-		} else if f.Tag.Get("bson") == id {
-			if fieldVal.IsZero() {
+
+		bsonTag := f.Tag.Get("bson")
+		if bsonTag == "" {
+			continue
+		}
+
+		switch bsonTag {
+		case "createdAt":
+			if fieldVal.Type() == reflect.TypeOf(time.Time{}) {
+				fieldVal.Set(reflect.ValueOf(now))
+			}
+		case "updatedAt":
+			if fieldVal.Type() == reflect.TypeOf(time.Time{}) {
+				fieldVal.Set(reflect.ValueOf(now))
+			}
+		case "_id": // 匹配 _id 字段
+			if fieldVal.Kind() == reflect.String && fieldVal.IsZero() {
 				fieldVal.Set(reflect.ValueOf(primitive.NewObjectID().Hex()))
+				idFieldSet = true
 			}
 		}
+	}
+
+	if !idFieldSet {
+		panic("无法设置 _id 字段，请检查结构体是否包含 string 类型的 _id 字段")
 	}
 }
 
