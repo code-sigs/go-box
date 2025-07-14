@@ -3,6 +3,7 @@ package mongo
 import (
 	"context"
 	"errors"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"reflect"
 	"strings"
 	"time"
@@ -87,7 +88,7 @@ func (r *MongoRepository[T, K]) CreateIndex(ctx context.Context, keys map[string
 }
 
 func (r *MongoRepository[T, K]) Create(ctx context.Context, entity *T) error {
-	setTimestamps(entity, true)
+	setTimestampsAndID(entity, r.idField)
 	_, err := r.collection.InsertOne(ctx, entity)
 	return err
 }
@@ -101,7 +102,7 @@ func (r *MongoRepository[T, K]) CreateMany(ctx context.Context, entities []*T) e
 	// 为每个实体设置时间戳，并构造 interface{} 切片
 	var docs []interface{}
 	for _, entity := range entities {
-		setTimestamps(entity, true)
+		setTimestampsAndID(entity, r.idField)
 		docs = append(docs, entity)
 	}
 
@@ -338,15 +339,20 @@ func (r *MongoRepository[T, K]) WithTransaction(ctx context.Context, fn func(txC
 }
 
 // setTimestamps 统一设置创建时间和更新时间
-func setTimestamps[T any](entity *T, isCreate bool) {
+func setTimestampsAndID[T any](entity *T, id string) {
 	v := reflect.ValueOf(entity).Elem()
 	now := time.Now()
 	for i := range v.NumField() {
 		f := v.Type().Field(i)
-		if f.Tag.Get("bson") == "createdAt" && isCreate {
+		fieldVal := v.Field(i)
+		if f.Tag.Get("bson") == "createdAt" {
 			v.Field(i).Set(reflect.ValueOf(now))
 		} else if f.Tag.Get("bson") == "updatedAt" {
 			v.Field(i).Set(reflect.ValueOf(now))
+		} else if f.Tag.Get("bson") == id {
+			if fieldVal.IsZero() {
+				fieldVal.Set(reflect.ValueOf(primitive.NewObjectID().Hex()))
+			}
 		}
 	}
 }
