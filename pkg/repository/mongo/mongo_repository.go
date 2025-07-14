@@ -138,7 +138,7 @@ func (r *MongoRepository[T, K]) Update(ctx context.Context, entity *T) error {
 	if id == nil {
 		return errors.New("missing ID field")
 	}
-	setTimestamps(entity, false)
+	setTimestampsAndID(entity, r.idField)
 	filter := bson.M{r.idField: id}
 	_, err := r.collection.ReplaceOne(ctx, filter, entity)
 	return err
