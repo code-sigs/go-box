@@ -3,6 +3,7 @@ package mongo
 import (
 	"context"
 	"errors"
+	"fmt"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"reflect"
 	"strings"
@@ -362,7 +363,8 @@ func setTimestampsAndID[T any](entity *T, id string) {
 			if fieldVal.Type() == reflect.TypeOf(time.Time{}) {
 				fieldVal.Set(reflect.ValueOf(now))
 			}
-		case "_id": // 匹配 _id 字段
+		case "_id":
+			fmt.Printf("id kind: %v, value: %v", fieldVal.Kind(), fieldVal.Interface())
 			if fieldVal.Kind() == reflect.String && fieldVal.IsZero() {
 				fieldVal.Set(reflect.ValueOf(primitive.NewObjectID().Hex()))
 				idFieldSet = true
