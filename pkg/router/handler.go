@@ -61,7 +61,8 @@ func GenericGRPCHandler(grpcFunc any, ctxInjector ContextInjector) gin.HandlerFu
 		}
 
 		ctx := ctxInjector(c, c.Request.Context())
-		logger.Infof(ctx, "ctxInjector clientip: %s", ctx.Value("clientip"))
+		logger.Infof(ctx, "ctxInjector clientip: %s", c.ClientIP())
+		ctx = context.WithValue(ctx, "clientip", c.ClientIP())
 		out := fnVal.Call([]reflect.Value{reflect.ValueOf(ctx), reqVal})
 
 		if len(out) != 2 {
