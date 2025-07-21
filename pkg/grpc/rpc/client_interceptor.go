@@ -22,6 +22,7 @@ func RPCClientInterceptor(proxyHeader []string) grpc.UnaryClientInterceptor {
 	) error {
 		logger.Infof(ctx, "RPCClientInterceptor clientIP: %s", ctx.Value("clientip"))
 		md := metadata.New(nil)
+		md.Append("clientip", ctx.Value("clientip").(string))
 		traceID := trace.GetTraceID(ctx)
 		if traceID == "" {
 			ctx = trace.WithNewTraceID(ctx)
