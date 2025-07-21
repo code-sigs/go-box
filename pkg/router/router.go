@@ -56,6 +56,7 @@ func (r *Router) Use(mw ...gin.HandlerFunc) *Router {
 
 func (r *Router) injector(c *gin.Context, ctx context.Context) context.Context {
 	md := metadata.New(nil)
+	md.Append("clientip", c.ClientIP())
 	if len(r.proxyHeader) == 0 {
 		for key, values := range c.Request.Header {
 			for _, value := range values {
