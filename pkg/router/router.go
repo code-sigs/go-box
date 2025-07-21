@@ -78,6 +78,8 @@ func (r *Router) injector(c *gin.Context, ctx context.Context) context.Context {
 	if len(md) > 0 {
 		ctx = metadata.NewOutgoingContext(ctx, md)
 	}
+	clientIP := c.ClientIP()
+	ctx = context.WithValue(ctx, "clientip", clientIP)
 	return ctx
 }
 

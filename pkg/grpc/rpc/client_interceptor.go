@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/code-sigs/go-box/pkg/logger"
 	"github.com/code-sigs/go-box/pkg/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -19,6 +20,7 @@ func RPCClientInterceptor(proxyHeader []string) grpc.UnaryClientInterceptor {
 		invoker grpc.UnaryInvoker,
 		opts ...grpc.CallOption,
 	) error {
+		logger.Infof(ctx, "RPCClientInterceptor clientIP: %s", ctx.Value("clientip"))
 		md := metadata.New(nil)
 		traceID := trace.GetTraceID(ctx)
 		if traceID == "" {
