@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/code-sigs/go-box/pkg/logger"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc/metadata"
@@ -57,6 +58,7 @@ func (r *Router) Use(mw ...gin.HandlerFunc) *Router {
 func (r *Router) injector(c *gin.Context, ctx context.Context) context.Context {
 	md := metadata.New(nil)
 	md.Append("clientip", c.ClientIP())
+	logger.Infof(c, "injector clientip: %s", c.ClientIP())
 	if len(r.proxyHeader) == 0 {
 		for key, values := range c.Request.Header {
 			for _, value := range values {
