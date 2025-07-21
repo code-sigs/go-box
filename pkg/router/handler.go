@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"reflect"
 
+	"github.com/code-sigs/go-box/pkg/logger"
 	"github.com/code-sigs/go-box/pkg/rpcerror"
 	"github.com/gin-gonic/gin"
 )
@@ -60,6 +61,7 @@ func GenericGRPCHandler(grpcFunc any, ctxInjector ContextInjector) gin.HandlerFu
 		}
 
 		ctx := ctxInjector(c, c.Request.Context())
+		logger.Infof(ctx, "ctxInjector clientip: %s", ctx.Value("clientip"))
 		out := fnVal.Call([]reflect.Value{reflect.ValueOf(ctx), reqVal})
 
 		if len(out) != 2 {
