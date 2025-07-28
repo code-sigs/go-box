@@ -7,7 +7,7 @@ import (
 // BaseRepository 定义所有仓库实现应遵循的通用接口。
 type BaseRepository[T any, K comparable] interface {
 	CreateIndex(ctx context.Context, keys map[string]int, optionsMap map[string]any) (string, error)
-	Create(ctx context.Context, entity *T) error
+	Create(ctx context.Context, entity *T) (*T, error)
 	CreateMany(ctx context.Context, entities []*T) error
 	GetByID(ctx context.Context, id K) (*T, error)
 	Update(ctx context.Context, entity *T) error

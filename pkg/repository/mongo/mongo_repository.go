@@ -3,10 +3,11 @@ package mongo
 import (
 	"context"
 	"errors"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"reflect"
 	"strings"
 	"time"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -87,10 +88,10 @@ func (r *MongoRepository[T, K]) CreateIndex(ctx context.Context, keys map[string
 	return r.collection.Indexes().CreateOne(ctx, model)
 }
 
-func (r *MongoRepository[T, K]) Create(ctx context.Context, entity *T) error {
+func (r *MongoRepository[T, K]) Create(ctx context.Context, entity *T) (*T, error) {
 	setTimestampsAndID(entity, r.idField)
 	_, err := r.collection.InsertOne(ctx, entity)
-	return err
+	return entity, err
 }
 
 // CreateMany 批量插入多个文档
