@@ -370,10 +370,6 @@ func setTimestampsAndID[T any](entity *T, id string) {
 			}
 		}
 	}
-
-	if !idFieldSet {
-		panic("无法设置 _id 字段，请检查结构体是否包含 string 类型的 _id 字段")
-	}
 }
 
 // toSnakeCase 将结构体名称转为下划线格式
