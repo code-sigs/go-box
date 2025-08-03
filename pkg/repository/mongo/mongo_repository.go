@@ -342,9 +342,7 @@ func (r *MongoRepository[T, K]) WithTransaction(ctx context.Context, fn func(txC
 func setTimestampsAndID[T any](entity *T, id string) {
 	v := reflect.ValueOf(entity).Elem()
 	now := time.Now()
-
-	var idFieldSet bool
-
+	
 	for i := 0; i < v.NumField(); i++ {
 		f := v.Type().Field(i)
 		fieldVal := v.Field(i)
