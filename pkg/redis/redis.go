@@ -171,38 +171,71 @@ func (r *RedisClient) TTL(ctx context.Context, key string) (time.Duration, error
 }
 
 func (r *RedisClient) DeletePrefix(ctx context.Context, pattern string) error {
-	const (
-		batchSize = 500  // 每批删除数量
-		scanCount = 1000 // 每次扫描数量
-	)
 	pattern = pattern + "*"
-	var cursor uint64
+	var totalDeleted int
+
 	for {
-		// 使用 SCAN 分批次获取键
-		keys, nextCursor, err := r.client.Scan(ctx, cursor, pattern, scanCount).Result()
-		if err != nil {
+		// 每次 Scan 可能只扫一个节点
+		iter := r.client.Scan(ctx, 0, pattern, 1000).Iterator()
+
+		var keys []string
+		for iter.Next(ctx) {
+			keys = append(keys, iter.Val())
+		}
+		if err := iter.Err(); err != nil {
 			return err
 		}
 
-		// 分批删除
-		for i := 0; i < len(keys); i += batchSize {
-			end := i + batchSize
-			if end > len(keys) {
-				end = len(keys)
-			}
-			if err := r.client.Del(ctx, keys[i:end]...).Err(); err != nil {
-				return err
-			}
-		}
-
-		// 更新游标
-		cursor = nextCursor
-		if cursor == 0 {
+		if len(keys) == 0 {
+			// 没有 key 了，说明删完了
 			break
+		}
+		// 删除本次扫描到的 key
+		for _, key := range keys {
+			if err := r.client.Del(ctx, key).Err(); err != nil {
+				if !errors.Is(err, redis.Nil) {
+					return err
+				}
+			}
+			totalDeleted++
 		}
 	}
 	return nil
 }
+
+//func (r *RedisClient) DeletePrefix(ctx context.Context, pattern string) error {
+//	const (
+//		batchSize = 500  // 每批删除数量
+//		scanCount = 1000 // 每次扫描数量
+//	)
+//	pattern = pattern + "*"
+//	var cursor uint64
+//	for {
+//		// 使用 SCAN 分批次获取键
+//		keys, nextCursor, err := r.client.Scan(ctx, cursor, pattern, scanCount).Result()
+//		if err != nil {
+//			return err
+//		}
+//
+//		// 分批删除
+//		for i := 0; i < len(keys); i += batchSize {
+//			end := i + batchSize
+//			if end > len(keys) {
+//				end = len(keys)
+//			}
+//			if err := r.client.Del(ctx, keys[i:end]...).Err(); err != nil {
+//				return err
+//			}
+//		}
+//
+//		// 更新游标
+//		cursor = nextCursor
+//		if cursor == 0 {
+//			break
+//		}
+//	}
+//	return nil
+//}
 
 func (r *RedisClient) GetUnmarshal(ctx context.Context, key string, out interface{}) error {
 	data, err := r.client.Get(ctx, key).Bytes()
