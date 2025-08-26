@@ -320,6 +320,39 @@ func (r *MongoRepository[T, K]) Count(ctx context.Context, filter map[string]any
 	return r.collection.CountDocuments(ctx, bson.M(filter))
 }
 
+func (r *MongoRepository[T, K]) GetMaxUpdatedAt(ctx context.Context) (int64, error) {
+	pipeline := []bson.M{
+		{
+			"$group": bson.M{
+				"_id": nil,
+				"max": bson.M{"$max": "$updatedAt"},
+			},
+		},
+	}
+
+	cursor, err := r.collection.Aggregate(ctx, pipeline)
+	if err != nil {
+		return 0, err
+	}
+	defer cursor.Close(ctx)
+
+	var result struct {
+		Max time.Time `bson:"max"`
+	}
+
+	if cursor.Next(ctx) {
+		if err := cursor.Decode(&result); err != nil {
+			return 0, err
+		}
+		return result.Max.Unix(), nil
+	}
+
+	if err := cursor.Err(); err != nil {
+		return 0, err
+	}
+	return 0, nil
+}
+
 func (r *MongoRepository[T, K]) WithTransaction(ctx context.Context, fn func(txCtx context.Context) error) error {
 	sess, err := r.collection.Database().Client().StartSession()
 	if err != nil {

@@ -20,6 +20,7 @@ type BaseRepository[T any, K comparable] interface {
 	FindOne(ctx context.Context, filter map[string]any) (*T, error)
 	Find(ctx context.Context, filter map[string]any, sort map[string]int) ([]*T, error)
 	Paginate(ctx context.Context, page int, limit int, filter map[string]any, sort map[string]int) ([]*T, int64, error)
+	GetMaxUpdatedAt(ctx context.Context) (int64, error)
 	Count(ctx context.Context, filter map[string]any) (int64, error)
 	WithTransaction(ctx context.Context, fn func(txCtx context.Context) error) error
 }
