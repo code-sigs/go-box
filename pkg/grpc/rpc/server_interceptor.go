@@ -2,8 +2,6 @@ package rpc
 
 import (
 	"context"
-	"strings"
-
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
@@ -20,8 +18,7 @@ func RPCServerInterceptor() grpc.UnaryServerInterceptor {
 		if ok {
 			for key, values := range md {
 				if len(values) > 0 {
-					// 以小写 key 存入 context，值为第一个
-					ctx = context.WithValue(ctx, strings.ToLower(key), values[0])
+					ctx = context.WithValue(ctx, key, values[0])
 				}
 			}
 		}
