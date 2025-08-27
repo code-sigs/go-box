@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"github.com/code-sigs/go-box/pkg/logger"
 	"github.com/code-sigs/go-box/pkg/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -27,9 +28,11 @@ func RPCClientInterceptor(proxyHeader []string) grpc.UnaryClientInterceptor {
 		if traceID == "" {
 			ctx = trace.WithNewTraceID(ctx)
 		}
+		logger.Infow(ctx, "RPCClientInterceptor", "proxyHeader", proxyHeader)
 		if len(proxyHeader) != 0 {
 			for _, key := range proxyHeader {
 				ctxValue := ctx.Value(key)
+				logger.Infow(ctx, "RPCClientInterceptor", "key", key, "value", ctxValue)
 				if ctxValue != nil {
 					if value, ok := ctxValue.(string); ok && value != "" {
 						md.Append(key, value)
