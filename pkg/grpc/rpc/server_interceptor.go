@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"context"
-	"github.com/code-sigs/go-box/pkg/logger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
@@ -19,7 +18,7 @@ func RPCServerInterceptor() grpc.UnaryServerInterceptor {
 		if ok {
 			for key, values := range md {
 				if len(values) > 0 {
-					logger.Infow(ctx, "RPCServerInterceptor", "key", key, "value", values[0])
+					//logger.Infow(ctx, "RPCServerInterceptor", "key", key, "value", values[0])
 					ctx = context.WithValue(ctx, key, values[0])
 				}
 			}

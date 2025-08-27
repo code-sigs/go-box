@@ -24,10 +24,10 @@ func NewGRPCConn(ctx context.Context, serviceName string, registry registry_inte
 	client, err := grpc.NewClient(
 		registry.Name()+":///"+serviceName,
 		grpc.WithResolvers(resolver.NewBuilder(registry)),
-		grpc.WithTransportCredentials(insecure.NewCredentials()),                          // 注意：生产环境中请使用安全连接
-		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(1024*1024*100)),               // 设置最大发送消息大小为 100MB
-		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(1024*1024*100)),               // 设置最大接收消息大小为 100MB
-		grpc.WithUnaryInterceptor(RPCClientInterceptor([]string{"userID", "platformID"})), // 可以传入自定义的 header 列表
+		grpc.WithTransportCredentials(insecure.NewCredentials()),                            // 注意：生产环境中请使用安全连接
+		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(1024*1024*100)),                 // 设置最大发送消息大小为 100MB
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(1024*1024*100)),                 // 设置最大接收消息大小为 100MB
+		grpc.WithUnaryInterceptor(RPCClientInterceptor([]string{"user-id", "platform-id"})), // 可以传入自定义的 header 列表
 		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`),
 	)
 	if err != nil {

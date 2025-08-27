@@ -2,7 +2,6 @@ package router
 
 import (
 	"context"
-	"github.com/code-sigs/go-box/pkg/logger"
 	"net/http"
 	"reflect"
 
@@ -62,15 +61,15 @@ func GenericGRPCHandler(grpcFunc any, ctxInjector ContextInjector) gin.HandlerFu
 
 		// ctx := ctxInjector(c, c.Request.Context())
 		//logger.Infof(c, "ctxInjector clientip: %s", c.ClientIP())
-		logger.Infow(c, "GenericGRPCHandler", "userID", c.Value("userID"), "platformID", c.Value("platformID"))
+		//logger.Infow(c, "GenericGRPCHandler", "userID", c.Value("userID"), "platformID", c.Value("platformID"))
 		ctx := context.WithValue(c.Request.Context(), "clientip", c.ClientIP())
-		userID := c.Value("userID")
-		platformID := c.Value("platformID")
+		userID := c.Value("user-id")
+		platformID := c.Value("platform-id")
 		if userID != nil {
-			ctx = context.WithValue(ctx, "userID", userID)
+			ctx = context.WithValue(ctx, "user-id", userID)
 		}
 		if platformID != nil {
-			ctx = context.WithValue(ctx, "platformID", platformID)
+			ctx = context.WithValue(ctx, "platform-id", platformID)
 		}
 		out := fnVal.Call([]reflect.Value{reflect.ValueOf(ctx), reqVal})
 
