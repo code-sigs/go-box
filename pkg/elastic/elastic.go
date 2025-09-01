@@ -43,11 +43,11 @@ func MonthlyIndexStrategy(base string) string {
 // ElasticClient 是用于处理实现 IndexNamer 接口的文档的 Elasticsearch 客户端
 type ElasticClient[T IndexNamer] struct {
 	es     *elasticsearch.Client
-	config ElasticConfig
+	config *ElasticConfig
 }
 
 // NewElasticClient 创建并初始化 ES 客户端（不会 panic）
-func NewElasticClient[T IndexNamer](cfg ElasticConfig) (*ElasticClient[T], error) {
+func NewElasticClient[T IndexNamer](cfg *ElasticConfig) (*ElasticClient[T], error) {
 	esCfg := elasticsearch.Config{
 		Addresses: cfg.Hosts,
 		Username:  cfg.Username,
