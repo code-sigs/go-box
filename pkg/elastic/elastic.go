@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/code-sigs/go-box/pkg/logger"
 	"github.com/elastic/go-elasticsearch/v9"
 	"github.com/elastic/go-elasticsearch/v9/esapi"
 	"io"
@@ -450,8 +449,8 @@ func (c *ElasticClient[T]) PaginateSearch(
 		nextCursor = base64.URLEncoding.EncodeToString(sortBytes)
 	}
 
-	logger.Infow(ctx, "elastic", "baseIndex", baseIndex, "dsl", dsl)
-	logger.Infow(ctx, "elastic", "baseIndex", baseIndex, "raw", raw)
+	//logger.Infow(ctx, "elastic", "baseIndex", baseIndex, "dsl", dsl)
+	//logger.Infow(ctx, "elastic", "baseIndex", baseIndex, "raw", raw)
 
 	return docs, nextCursor, raw.Hits.Total.Value, nil
 }
