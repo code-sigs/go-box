@@ -11,6 +11,7 @@ import (
 	"github.com/elastic/go-elasticsearch/v9/esapi"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -303,77 +304,134 @@ func (c *ElasticClient[T]) Search(ctx context.Context, query map[string]interfac
 }
 
 // SearchPagination 支持 search_after 分页
-func (c *ElasticClient[T]) SearchPagination(ctx context.Context, baseIndex string, query map[string]interface{}, sortFields []string, size int, cursor string) ([]*T, string, error) {
-	if baseIndex == "" {
-		var zero T
-		baseIndex = zero.IndexName() + "-*"
+// sortFields 的格式是 []string{"@timestamp:desc", "id:asc"}
+func (c *ElasticClient[T]) PaginateSearch(
+	ctx context.Context,
+	query map[string]interface{},
+	sortFields []string,
+	size int,
+	cursor string,
+	startTime, endTime *time.Time,
+) ([]*T, string, int64, error) {
+
+	// 1. 确定索引模式
+	var zero T
+	baseIndex := zero.IndexName() + "-*"
+
+	// 2. 构建查询 DSL
+	if query == nil {
+		query = make(map[string]interface{})
 	}
+	boolQuery := map[string]interface{}{
+		"must": []interface{}{},
+	}
+	if q, ok := query["query"]; ok {
+		boolQuery["must"] = append(boolQuery["must"].([]interface{}), q)
+	}
+
+	// 时间过滤
+	if startTime != nil || endTime != nil {
+		rangeQuery := map[string]interface{}{
+			"range": map[string]interface{}{
+				"@timestamp": map[string]interface{}{},
+			},
+		}
+		if startTime != nil {
+			rangeQuery["range"].(map[string]interface{})["@timestamp"].(map[string]interface{})["gte"] = startTime.Format(time.RFC3339)
+		}
+		if endTime != nil {
+			rangeQuery["range"].(map[string]interface{})["@timestamp"].(map[string]interface{})["lte"] = endTime.Format(time.RFC3339)
+		}
+		boolQuery["must"] = append(boolQuery["must"].([]interface{}), rangeQuery)
+	}
+
+	// 组装最终查询
+	dsl := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": boolQuery,
+		},
+		"size": size,
+	}
+
+	// 排序字段
+	if len(sortFields) > 0 {
+		var sorts []map[string]interface{}
+		for _, sf := range sortFields {
+			field := sf
+			order := "asc"
+			if strings.Contains(sf, ":") {
+				parts := strings.Split(sf, ":")
+				field = parts[0]
+				order = parts[1]
+			}
+			sorts = append(sorts, map[string]interface{}{field: map[string]string{"order": order}})
+		}
+		dsl["sort"] = sorts
+	}
+
+	// 游标（search_after）
 	if cursor != "" {
 		decoded, err := base64.URLEncoding.DecodeString(cursor)
 		if err != nil {
-			return nil, "", fmt.Errorf("解码游标失败: %w", err)
+			return nil, "", 0, fmt.Errorf("解码游标失败: %w", err)
 		}
 		var sa []interface{}
 		if err := json.Unmarshal(decoded, &sa); err != nil {
-			return nil, "", fmt.Errorf("解析游标失败: %w", err)
+			return nil, "", 0, fmt.Errorf("解析游标失败: %w", err)
 		}
-		query["search_after"] = sa
-	}
-	if size <= 0 {
-		size = 20
-	}
-	if len(sortFields) > 0 {
-		query["sort"] = sortFields
-	}
-	query["size"] = size
-
-	indices := []string{baseIndex}
-	resDocs, _, err := c.Search(ctx, query, indices...)
-	if err != nil {
-		return nil, "", err
-	}
-	if len(resDocs) == 0 || len(resDocs) < size {
-		return resDocs, "", nil
+		dsl["search_after"] = sa
 	}
 
+	// 3. 发送请求
 	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(query); err != nil {
-		return nil, "", fmt.Errorf("编码查询参数失败: %w", err)
+	if err := json.NewEncoder(&buf).Encode(dsl); err != nil {
+		return nil, "", 0, fmt.Errorf("编码查询失败: %w", err)
 	}
 
 	res, err := c.doRequestWithRetry(ctx, func(ctx context.Context) (*esapi.Response, error) {
-		return c.es.Search(c.es.Search.WithContext(ctx), c.es.Search.WithIndex(indices...), c.es.Search.WithBody(&buf))
+		return c.es.Search(
+			c.es.Search.WithContext(ctx),
+			c.es.Search.WithIndex(baseIndex),
+			c.es.Search.WithBody(&buf),
+		)
 	})
 	if err != nil {
-		return nil, "", err
+		return nil, "", 0, err
 	}
 	defer res.Body.Close()
 
+	// 4. 解析响应
 	var raw struct {
 		Hits struct {
+			Total struct {
+				Value int64 `json:"value"`
+			} `json:"total"`
 			Hits []struct {
-				Sort []interface{} `json:"sort"`
+				Source json.RawMessage `json:"_source"`
+				Sort   []interface{}   `json:"sort"`
 			} `json:"hits"`
 		} `json:"hits"`
 	}
 	if err := json.NewDecoder(res.Body).Decode(&raw); err != nil {
-		return nil, "", fmt.Errorf("解析 sort 数据失败: %w", err)
+		return nil, "", 0, fmt.Errorf("解析结果失败: %w", err)
 	}
-	if len(raw.Hits.Hits) == 0 {
-		return resDocs, "", nil
-	}
-	lastSort := raw.Hits.Hits[len(raw.Hits.Hits)-1].Sort
-	lastSortJSON, err := json.Marshal(lastSort)
-	if err != nil {
-		return resDocs, "", fmt.Errorf("序列化 sort 值失败: %w", err)
-	}
-	cursorOut := base64.URLEncoding.EncodeToString(lastSortJSON)
-	return resDocs, cursorOut, nil
-}
 
-// GetMessagesPatternIndex 根据索引模式（如 base-*）执行查询
-func (c *ElasticClient[T]) GetMessagesPatternIndex(ctx context.Context, baseIndex string, rawQuery map[string]interface{}) ([]*T, error) {
-	index := baseIndex
-	resDocs, _, err := c.Search(ctx, rawQuery, index)
-	return resDocs, err
+	// 5. 反序列化文档
+	docs := make([]*T, 0, len(raw.Hits.Hits))
+	for _, h := range raw.Hits.Hits {
+		var doc T
+		if err := json.Unmarshal(h.Source, &doc); err == nil {
+			docs = append(docs, &doc)
+		}
+	}
+
+	// 6. 生成新游标
+	nextCursor := ""
+	if len(raw.Hits.Hits) == size {
+		lastSort := raw.Hits.Hits[len(raw.Hits.Hits)-1].Sort
+		sortBytes, _ := json.Marshal(lastSort)
+		nextCursor = base64.URLEncoding.EncodeToString(sortBytes)
+	}
+
+	return docs, nextCursor, raw.Hits.Total.Value, nil
 }
