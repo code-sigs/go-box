@@ -313,6 +313,7 @@ func (c *ElasticClient[T]) PaginateSearch(
 	size int,
 	cursor string,
 	startTime, endTime *time.Time,
+	reverse bool,
 ) ([]*T, string, int64, error) {
 
 	// 1. 确定索引模式
@@ -346,14 +347,15 @@ func (c *ElasticClient[T]) PaginateSearch(
 		boolQuery["must"] = append(boolQuery["must"].([]interface{}), rangeQuery)
 	}
 
-	// 组装最终查询
+	// 3. 组装最终查询
 	dsl := map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": boolQuery,
 		},
 		"size": size,
 	}
-	// 排序字段
+
+	// 4. 排序字段
 	if len(sortFields) > 0 {
 		var sorts []map[string]interface{}
 		for _, sf := range sortFields {
@@ -364,12 +366,20 @@ func (c *ElasticClient[T]) PaginateSearch(
 				field = parts[0]
 				order = parts[1]
 			}
+			// 反向查询时翻转 order
+			if reverse {
+				if order == "asc" {
+					order = "desc"
+				} else {
+					order = "asc"
+				}
+			}
 			sorts = append(sorts, map[string]interface{}{field: map[string]string{"order": order}})
 		}
 		dsl["sort"] = sorts
 	}
 
-	// 游标（search_after）
+	// 5. 游标（search_after）
 	if cursor != "" {
 		decoded, err := base64.URLEncoding.DecodeString(cursor)
 		if err != nil {
@@ -382,7 +392,7 @@ func (c *ElasticClient[T]) PaginateSearch(
 		dsl["search_after"] = sa
 	}
 
-	// 3. 发送请求
+	// 6. 发送请求
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(dsl); err != nil {
 		return nil, "", 0, fmt.Errorf("编码查询失败: %w", err)
@@ -400,7 +410,7 @@ func (c *ElasticClient[T]) PaginateSearch(
 	}
 	defer res.Body.Close()
 
-	// 4. 解析响应
+	// 7. 解析响应
 	var raw struct {
 		Hits struct {
 			Total struct {
@@ -416,7 +426,7 @@ func (c *ElasticClient[T]) PaginateSearch(
 		return nil, "", 0, fmt.Errorf("解析结果失败: %w", err)
 	}
 
-	// 5. 反序列化文档
+	// 8. 反序列化文档
 	docs := make([]*T, 0, len(raw.Hits.Hits))
 	for _, h := range raw.Hits.Hits {
 		var doc T
@@ -425,16 +435,23 @@ func (c *ElasticClient[T]) PaginateSearch(
 		}
 	}
 
-	logger.Infow(ctx, "elastic", "baseIndex", baseIndex, "dsl", dsl)
-	logger.Infow(ctx, "elastic", "baseIndex", baseIndex, "raw", raw)
+	// 9. 反向查询时反转结果
+	if reverse && len(docs) > 1 {
+		for i, j := 0, len(docs)-1; i < j; i, j = i+1, j-1 {
+			docs[i], docs[j] = docs[j], docs[i]
+		}
+	}
 
-	// 6. 生成新游标
+	// 10. 生成新游标
 	nextCursor := ""
 	if len(raw.Hits.Hits) == size {
 		lastSort := raw.Hits.Hits[len(raw.Hits.Hits)-1].Sort
 		sortBytes, _ := json.Marshal(lastSort)
 		nextCursor = base64.URLEncoding.EncodeToString(sortBytes)
 	}
+
+	logger.Infow(ctx, "elastic", "baseIndex", baseIndex, "dsl", dsl)
+	logger.Infow(ctx, "elastic", "baseIndex", baseIndex, "raw", raw)
 
 	return docs, nextCursor, raw.Hits.Total.Value, nil
 }
