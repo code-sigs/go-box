@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/code-sigs/go-box/pkg/logger"
 	"github.com/elastic/go-elasticsearch/v9"
 	"github.com/elastic/go-elasticsearch/v9/esapi"
 	"io"
@@ -424,6 +425,9 @@ func (c *ElasticClient[T]) PaginateSearch(
 			docs = append(docs, &doc)
 		}
 	}
+	logger.Infow(ctx, "elastic", "raw", raw)
+	logger.Infow(ctx, "elastic", "raw.Hits", raw.Hits)
+	logger.Infow(ctx, "elastic", "raw.Hits.Hits", raw.Hits.Hits)
 
 	// 6. 生成新游标
 	nextCursor := ""
