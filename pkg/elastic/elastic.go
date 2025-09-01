@@ -425,7 +425,7 @@ func (c *ElasticClient[T]) PaginateSearch(
 			docs = append(docs, &doc)
 		}
 	}
-	logger.Infow(ctx, "elastic", "raw", raw)
+	logger.Infow(ctx, "elastic", "baseIndex", baseIndex, "raw", raw)
 	logger.Infow(ctx, "elastic", "raw.Hits", raw.Hits)
 	logger.Infow(ctx, "elastic", "raw.Hits.Hits", raw.Hits.Hits)
 
