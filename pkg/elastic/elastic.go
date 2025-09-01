@@ -353,8 +353,6 @@ func (c *ElasticClient[T]) PaginateSearch(
 		},
 		"size": size,
 	}
-	logger.Infow(ctx, "elastic", "baseIndex", baseIndex, "dsl", dsl)
-
 	// 排序字段
 	if len(sortFields) > 0 {
 		var sorts []map[string]interface{}
@@ -426,6 +424,8 @@ func (c *ElasticClient[T]) PaginateSearch(
 			docs = append(docs, &doc)
 		}
 	}
+
+	logger.Infow(ctx, "elastic", "baseIndex", baseIndex, "dsl", dsl)
 	logger.Infow(ctx, "elastic", "baseIndex", baseIndex, "raw", raw)
 
 	// 6. 生成新游标
