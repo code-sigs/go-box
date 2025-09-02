@@ -7,24 +7,26 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"path/filepath"
+	"time"
 )
 
 type MinIOConfig struct {
-	Endpoint  string `mapstructure:"endpoint"`
-	AccessKey string `mapstructure:"accessKey"`
-	SecretKey string `mapstructure:"secretKey"`
-	UseSSL    bool   `mapstructure:"useSSL"`
-	Bucket    string `mapstructure:"bucket"`
-	IsPublic  bool   `mapstructure:"isPublic"`
+	Endpoint     string `mapstructure:"endpoint"`
+	AccessKey    string `mapstructure:"accessKey"`
+	SecretKey    string `mapstructure:"secretKey"`
+	UseSSL       bool   `mapstructure:"useSSL"`
+	Bucket       string `mapstructure:"bucket"`
+	IsPublic     bool   `mapstructure:"isPublic"`
+	ExternalAddr string `mapstructure:"externalAddr"`
 }
 
 type MinIO struct {
-	client   *minio.Client
-	bucket   string
-	endpoint string
-	useSSL   bool
+	client *minio.Client
+	cfg    *MinIOConfig
 }
 
 func NewMinIO(cfg *MinIOConfig) (*MinIO, error) {
@@ -68,32 +70,32 @@ func NewMinIO(cfg *MinIOConfig) (*MinIO, error) {
 		}
 
 	}
-
+	if cfg.ExternalAddr == "" {
+		cfg.ExternalAddr = cfg.Endpoint
+	}
 	return &MinIO{
-		client:   client,
-		bucket:   cfg.Bucket,
-		endpoint: cfg.Endpoint,
-		useSSL:   cfg.UseSSL,
+		client: client,
+		cfg:    cfg,
 	}, nil
 }
 
-func (m *MinIO) UploadFile(objectName string, reader io.Reader, size int64, contentType string) (string, error) {
-	_, err := m.client.PutObject(context.Background(), m.bucket, objectName, reader, size, minio.PutObjectOptions{ContentType: contentType})
+func (m *MinIO) UploadFile(ctx context.Context, objectName string, reader io.Reader, size int64, contentType string) (string, error) {
+	_, err := m.client.PutObject(ctx, m.cfg.Bucket, objectName, reader, size, minio.PutObjectOptions{ContentType: contentType})
 	if err != nil {
 		return "", fmt.Errorf("failed to upload file: %w", err)
 	}
 
 	scheme := "http"
-	if m.useSSL {
+	if m.cfg.UseSSL {
 		scheme = "https"
 	}
 
-	url := fmt.Sprintf("%s://%s/%s/%s", scheme, m.endpoint, m.bucket, objectName)
+	url := fmt.Sprintf("%s://%s/%s/%s", scheme, m.cfg.Endpoint, m.cfg.Bucket, objectName)
 	return url, nil
 }
 
 // UploadLocalFile 从本地路径上传文件并自动识别 contentType
-func (m *MinIO) UploadLocalFile(objectName, filePath string) (string, error) {
+func (m *MinIO) UploadLocalFile(ctx context.Context, objectName, filePath string) (string, error) {
 	// 打开本地文件
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -129,5 +131,92 @@ func (m *MinIO) UploadLocalFile(objectName, filePath string) (string, error) {
 	}
 
 	// 调用上传方法
-	return m.UploadFile(objectName, file, stat.Size(), contentType)
+	return m.UploadFile(ctx, objectName, file, stat.Size(), contentType)
+}
+
+func (m *MinIO) PresignedPutURL(ctx context.Context, objectName string, expiry time.Duration) (string, string, error) {
+	if expiry <= 0 {
+		expiry = time.Hour
+	}
+
+	presignedURL, err := m.client.PresignedPutObject(ctx, m.cfg.Bucket, objectName, expiry)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to generate presigned upload URL: %w", err)
+	}
+	// 使用 ExternalHost 替换原有 Host
+	u, err := url.Parse(presignedURL.String())
+	if err != nil {
+		return "", "", fmt.Errorf("failed to parse presigned URL: %w", err)
+	}
+
+	externalURL, err := url.Parse(m.cfg.ExternalAddr)
+	if err != nil {
+		return "", "", fmt.Errorf("invalid ExternalAddr: %w", err)
+	}
+
+	// 替换 scheme 和 host
+	u.Scheme = externalURL.Scheme
+	u.Host = externalURL.Host
+	return u.String(), path.Join(m.cfg.Bucket, objectName), nil
+}
+
+func (m *MinIO) PresignedGetURL(ctx context.Context, objectName string, expiry time.Duration, filename string, inline bool, contentType string) (string, error) {
+	if expiry <= 0 {
+		expiry = time.Hour
+	}
+	reqParams := make(url.Values)
+	if filename != "" {
+		disposition := "attachment"
+		if inline {
+			disposition = "inline"
+		}
+		safeFileName := url.PathEscape(filename)
+		reqParams.Set("response-content-disposition", fmt.Sprintf("%s; filename=\"%s\"", disposition, safeFileName))
+	}
+	if contentType != "" {
+		reqParams.Set("response-content-type", contentType)
+	}
+	presignedURL, err := m.client.PresignedGetObject(ctx, m.cfg.Bucket, objectName, expiry, reqParams)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate presigned download URL: %w", err)
+	}
+	// 使用 ExternalHost 替换原有 Host
+	u, err := url.Parse(presignedURL.String())
+	if err != nil {
+		return "", fmt.Errorf("failed to parse presigned URL: %w", err)
+	}
+
+	externalURL, err := url.Parse(m.cfg.ExternalAddr)
+	if err != nil {
+		return "", fmt.Errorf("invalid ExternalHost: %w", err)
+	}
+
+	// 替换 scheme 和 host
+	u.Scheme = externalURL.Scheme
+	u.Host = externalURL.Host
+
+	return u.String(), nil
+}
+
+func (m *MinIO) MoveObject(ctx context.Context, srcObject, dstObject string) (string, error) {
+	src := minio.CopySrcOptions{
+		Bucket: m.cfg.Bucket,
+		Object: srcObject,
+	}
+	dst := minio.CopyDestOptions{
+		Bucket: m.cfg.Bucket,
+		Object: dstObject,
+	}
+
+	_, err := m.client.CopyObject(ctx, dst, src)
+	if err != nil {
+		return "", fmt.Errorf("failed to copy object: %w", err)
+	}
+
+	err = m.client.RemoveObject(ctx, m.cfg.Bucket, srcObject, minio.RemoveObjectOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to delete source object: %w", err)
+	}
+
+	return path.Join(m.cfg.Bucket, dstObject), nil
 }
