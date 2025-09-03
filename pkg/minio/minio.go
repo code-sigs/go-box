@@ -43,10 +43,13 @@ func NewMinIO(cfg *MinIOConfig) (*MinIO, error) {
 	} else {
 		cfg.ExternalAddr = cfg.Endpoint
 	}
-
+	useSSL := false
+	if endpoint.Scheme == "https" {
+		useSSL = true
+	}
 	client, err := minio.New(endpoint.Host, &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.AccessKey, cfg.SecretKey, ""),
-		Secure: cfg.UseSSL,
+		Secure: useSSL,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create MinIO client: %w", err)
