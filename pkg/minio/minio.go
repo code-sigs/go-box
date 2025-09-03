@@ -85,13 +85,13 @@ func (m *MinIO) UploadFile(ctx context.Context, objectName string, reader io.Rea
 		return "", fmt.Errorf("failed to upload file: %w", err)
 	}
 
-	scheme := "http"
-	if m.cfg.UseSSL {
-		scheme = "https"
-	}
+	//scheme := "http"
+	//if m.cfg.UseSSL {
+	//	scheme = "https"
+	//}
 
-	url := fmt.Sprintf("%s://%s/%s/%s", scheme, m.cfg.Endpoint, m.cfg.Bucket, objectName)
-	return url, nil
+	//url := fmt.Sprintf("%s/%s/%s", m.cfg.Endpoint, m.cfg.Bucket, objectName)
+	return fmt.Sprintf("%s/%s/%s", m.cfg.Endpoint, m.cfg.Bucket, objectName), nil
 }
 
 // UploadLocalFile 从本地路径上传文件并自动识别 contentType
