@@ -30,7 +30,12 @@ type MinIO struct {
 }
 
 func NewMinIO(cfg *MinIOConfig) (*MinIO, error) {
-	client, err := minio.New(cfg.Endpoint, &minio.Options{
+	endpoint, err := url.Parse(cfg.Endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("invalid Endpoint: %w", err)
+	}
+
+	client, err := minio.New(endpoint.Host, &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.AccessKey, cfg.SecretKey, ""),
 		Secure: cfg.UseSSL,
 	})
