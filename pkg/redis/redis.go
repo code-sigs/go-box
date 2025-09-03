@@ -170,59 +170,95 @@ func (r *RedisClient) TTL(ctx context.Context, key string) (time.Duration, error
 	return r.client.TTL(ctx, key).Result()
 }
 
-func (r *RedisClient) DeletePrefix(ctx context.Context, prefix string) error {
+func (r *RedisClient) DeletePrefix(ctx context.Context, prefix string) (int64, error) {
 	pattern := prefix + "*"
+	var totalDeleted int64
 
 	switch c := r.client.(type) {
-
-	// 集群：对每个 master 分片单独扫描 & 删除
 	case *redis.ClusterClient:
-		return c.ForEachMaster(ctx, func(ctx context.Context, shard *redis.Client) error {
+		err := c.ForEachMaster(ctx, func(ctx context.Context, shard *redis.Client) error {
 			iter := shard.Scan(ctx, 0, pattern, 1000).Iterator()
 			pipe := shard.Pipeline()
+			var cmds []*redis.IntCmd
 			batch := 0
 
 			for iter.Next(ctx) {
-				pipe.Unlink(ctx, iter.Val()) // 非阻塞删除
+				cmd := pipe.Unlink(ctx, iter.Val())
+				cmds = append(cmds, cmd)
 				batch++
-				if batch >= 1000 { // 批次提交，减少 RTT
-					if _, err := pipe.Exec(ctx); err != nil {
+				if batch >= 1000 {
+					n, err := execAndCount(ctx, pipe, cmds)
+					if err != nil {
 						return err
 					}
+					totalDeleted += n
+					pipe = shard.Pipeline() // 重建 pipeline
+					cmds = cmds[:0]
 					batch = 0
 				}
 			}
 			if err := iter.Err(); err != nil {
 				return err
 			}
-			_, err := pipe.Exec(ctx) // 把尾批次提交掉
-			return err
+			if len(cmds) > 0 {
+				n, err := execAndCount(ctx, pipe, cmds)
+				if err != nil {
+					return err
+				}
+				totalDeleted += n
+			}
+			return nil
 		})
+		return totalDeleted, err
 
-	// 单机：直接扫描当前实例即可
 	case *redis.Client:
 		iter := c.Scan(ctx, 0, pattern, 1000).Iterator()
 		pipe := c.Pipeline()
+		var cmds []*redis.IntCmd
 		batch := 0
+
 		for iter.Next(ctx) {
-			pipe.Unlink(ctx, iter.Val())
+			cmd := pipe.Unlink(ctx, iter.Val())
+			cmds = append(cmds, cmd)
 			batch++
 			if batch >= 1000 {
-				if _, err := pipe.Exec(ctx); err != nil {
-					return err
+				n, err := execAndCount(ctx, pipe, cmds)
+				if err != nil {
+					return totalDeleted, err
 				}
+				totalDeleted += n
+				pipe = c.Pipeline() // 重建 pipeline
+				cmds = cmds[:0]
 				batch = 0
 			}
 		}
 		if err := iter.Err(); err != nil {
-			return err
+			return totalDeleted, err
 		}
-		_, err := pipe.Exec(ctx)
-		return err
+		if len(cmds) > 0 {
+			n, err := execAndCount(ctx, pipe, cmds)
+			if err != nil {
+				return totalDeleted, err
+			}
+			totalDeleted += n
+		}
+		return totalDeleted, nil
 
 	default:
-		return errors.New("unsupported redis client type (need *redis.Client or *redis.ClusterClient)")
+		return 0, errors.New("unsupported redis client type (need *redis.Client or *redis.ClusterClient)")
 	}
+}
+
+func execAndCount(ctx context.Context, pipe redis.Pipeliner, cmds []*redis.IntCmd) (int64, error) {
+	_, err := pipe.Exec(ctx)
+	if err != nil {
+		return 0, err
+	}
+	var deleted int64
+	for _, cmd := range cmds {
+		deleted += cmd.Val()
+	}
+	return deleted, nil
 }
 
 //func (r *RedisClient) DeletePrefix(ctx context.Context, pattern string) error {
