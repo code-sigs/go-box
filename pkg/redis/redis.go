@@ -170,37 +170,59 @@ func (r *RedisClient) TTL(ctx context.Context, key string) (time.Duration, error
 	return r.client.TTL(ctx, key).Result()
 }
 
-func (r *RedisClient) DeletePrefix(ctx context.Context, pattern string) error {
-	pattern = pattern + "*"
-	var totalDeleted int
+func (r *RedisClient) DeletePrefix(ctx context.Context, prefix string) error {
+	pattern := prefix + "*"
 
-	for {
-		// 每次 Scan 可能只扫一个节点
-		iter := r.client.Scan(ctx, 0, pattern, 1000).Iterator()
+	switch c := r.client.(type) {
 
-		var keys []string
+	// 集群：对每个 master 分片单独扫描 & 删除
+	case *redis.ClusterClient:
+		return c.ForEachMaster(ctx, func(ctx context.Context, shard *redis.Client) error {
+			iter := shard.Scan(ctx, 0, pattern, 1000).Iterator()
+			pipe := shard.Pipeline()
+			batch := 0
+
+			for iter.Next(ctx) {
+				pipe.Unlink(ctx, iter.Val()) // 非阻塞删除
+				batch++
+				if batch >= 1000 { // 批次提交，减少 RTT
+					if _, err := pipe.Exec(ctx); err != nil {
+						return err
+					}
+					batch = 0
+				}
+			}
+			if err := iter.Err(); err != nil {
+				return err
+			}
+			_, err := pipe.Exec(ctx) // 把尾批次提交掉
+			return err
+		})
+
+	// 单机：直接扫描当前实例即可
+	case *redis.Client:
+		iter := c.Scan(ctx, 0, pattern, 1000).Iterator()
+		pipe := c.Pipeline()
+		batch := 0
 		for iter.Next(ctx) {
-			keys = append(keys, iter.Val())
+			pipe.Unlink(ctx, iter.Val())
+			batch++
+			if batch >= 1000 {
+				if _, err := pipe.Exec(ctx); err != nil {
+					return err
+				}
+				batch = 0
+			}
 		}
 		if err := iter.Err(); err != nil {
 			return err
 		}
+		_, err := pipe.Exec(ctx)
+		return err
 
-		if len(keys) == 0 {
-			// 没有 key 了，说明删完了
-			break
-		}
-		// 删除本次扫描到的 key
-		for _, key := range keys {
-			if err := r.client.Del(ctx, key).Err(); err != nil {
-				if !errors.Is(err, redis.Nil) {
-					return err
-				}
-			}
-			totalDeleted++
-		}
+	default:
+		return errors.New("unsupported redis client type (need *redis.Client or *redis.ClusterClient)")
 	}
-	return nil
 }
 
 //func (r *RedisClient) DeletePrefix(ctx context.Context, pattern string) error {
