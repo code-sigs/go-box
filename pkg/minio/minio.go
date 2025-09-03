@@ -35,6 +35,15 @@ func NewMinIO(cfg *MinIOConfig) (*MinIO, error) {
 		return nil, fmt.Errorf("invalid Endpoint: %w", err)
 	}
 
+	if cfg.ExternalAddr != "" {
+		_, err = url.Parse(cfg.ExternalAddr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid ExternalAddr: %w", err)
+		}
+	} else {
+		cfg.ExternalAddr = cfg.Endpoint
+	}
+
 	client, err := minio.New(endpoint.Host, &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.AccessKey, cfg.SecretKey, ""),
 		Secure: cfg.UseSSL,
@@ -74,9 +83,6 @@ func NewMinIO(cfg *MinIOConfig) (*MinIO, error) {
 			}
 		}
 
-	}
-	if cfg.ExternalAddr == "" {
-		cfg.ExternalAddr = cfg.Endpoint
 	}
 	return &MinIO{
 		client: client,
