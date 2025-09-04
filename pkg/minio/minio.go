@@ -212,6 +212,15 @@ func (m *MinIO) PresignedGetURL(ctx context.Context, objectName string, expiry t
 	return u.String(), nil
 }
 
+// GetPermanentlyGetURL 返回一个永久有效的下载地址
+// 注意：只有当 Bucket 是公开的（IsPublic = true）或设置了相应的 Policy，该 URL 才能被外部访问
+func (m *MinIO) GetPermanentlyGetURL(ctx context.Context, objectName string) (string, error) {
+	if m.cfg.IsPublic {
+		return path.Join(m.cfg.ExternalAddr, m.cfg.Bucket, objectName), nil
+	}
+	return m.PresignedGetURL(ctx, objectName, time.Hour*24*30, filepath.Base(objectName), false, "")
+}
+
 func (m *MinIO) MoveObject(ctx context.Context, srcObject, dstObject string) (string, error) {
 	src := minio.CopySrcOptions{
 		Bucket: m.cfg.Bucket,
@@ -233,4 +242,12 @@ func (m *MinIO) MoveObject(ctx context.Context, srcObject, dstObject string) (st
 	}
 
 	return path.Join(m.cfg.Bucket, dstObject), nil
+}
+
+func (m *MinIO) DeleteObject(ctx context.Context, object string) error {
+	err := m.client.RemoveObject(ctx, m.cfg.Bucket, object, minio.RemoveObjectOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to delete source object: %w", err)
+	}
+	return nil
 }
