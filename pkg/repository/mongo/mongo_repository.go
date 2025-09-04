@@ -89,7 +89,7 @@ func (r *MongoRepository[T, K]) CreateIndex(ctx context.Context, keys map[string
 }
 
 func (r *MongoRepository[T, K]) Create(ctx context.Context, entity *T) (*T, error) {
-	setTimestampsAndID(entity, r.idField)
+	setTimestampsAndID(entity, r.idField, false)
 	_, err := r.collection.InsertOne(ctx, entity)
 	return entity, err
 }
@@ -103,7 +103,7 @@ func (r *MongoRepository[T, K]) CreateMany(ctx context.Context, entities []*T) e
 	// 为每个实体设置时间戳，并构造 interface{} 切片
 	var docs []interface{}
 	for _, entity := range entities {
-		setTimestampsAndID(entity, r.idField)
+		setTimestampsAndID(entity, r.idField, false)
 		docs = append(docs, entity)
 	}
 
@@ -139,7 +139,7 @@ func (r *MongoRepository[T, K]) Update(ctx context.Context, entity *T) error {
 	if id == nil {
 		return errors.New("missing ID field")
 	}
-	setTimestampsAndID(entity, r.idField)
+	setTimestampsAndID(entity, r.idField, true)
 	filter := bson.M{r.idField: id}
 	_, err := r.collection.ReplaceOne(ctx, filter, entity)
 	return err
@@ -372,7 +372,7 @@ func (r *MongoRepository[T, K]) WithTransaction(ctx context.Context, fn func(txC
 	})
 }
 
-func setTimestampsAndID[T any](entity *T, id string) {
+func setTimestampsAndID[T any](entity *T, id string, isUpdate bool) {
 	v := reflect.ValueOf(entity).Elem()
 	now := time.Now()
 
@@ -387,15 +387,15 @@ func setTimestampsAndID[T any](entity *T, id string) {
 
 		switch bsonTag {
 		case "createdAt":
-			if fieldVal.Type() == reflect.TypeOf(time.Time{}) {
+			if !isUpdate && fieldVal.Type() == reflect.TypeOf(time.Time{}) {
 				fieldVal.Set(reflect.ValueOf(now))
 			}
 		case "updatedAt":
 			if fieldVal.Type() == reflect.TypeOf(time.Time{}) {
 				fieldVal.Set(reflect.ValueOf(now))
 			}
-		case "_id":
-			if fieldVal.Kind() == reflect.String && fieldVal.IsZero() {
+		case id:
+			if !isUpdate && fieldVal.Kind() == reflect.String && fieldVal.IsZero() {
 				fieldVal.Set(reflect.ValueOf(primitive.NewObjectID().Hex()))
 			}
 		}
