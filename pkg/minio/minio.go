@@ -216,7 +216,12 @@ func (m *MinIO) PresignedGetURL(ctx context.Context, objectName string, expiry t
 // 注意：只有当 Bucket 是公开的（IsPublic = true）或设置了相应的 Policy，该 URL 才能被外部访问
 func (m *MinIO) GetPermanentlyGetURL(ctx context.Context, objectName string) (string, error) {
 	if m.cfg.IsPublic {
-		return path.Join(m.cfg.ExternalAddr, m.cfg.Bucket, objectName), nil
+		externalURL, err := url.Parse(m.cfg.ExternalAddr)
+		if err != nil {
+			return "", fmt.Errorf("invalid ExternalAddr: %w", err)
+		}
+		externalURL.Path = path.Join(externalURL.Path, m.cfg.Bucket, objectName)
+		return externalURL.String(), nil
 	}
 	return m.PresignedGetURL(ctx, objectName, time.Hour*24*30, filepath.Base(objectName), false, "")
 }
