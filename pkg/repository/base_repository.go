@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // BaseRepository 定义所有仓库实现应遵循的通用接口。
@@ -17,7 +18,7 @@ type BaseRepository[T any, K comparable] interface {
 	HardDelete(ctx context.Context, id K) error
 	HardDeleteMany(ctx context.Context, id []K) error
 	List(ctx context.Context) ([]*T, error)
-	FindOne(ctx context.Context, filter map[string]any) (*T, error)
+	FindOne(ctx context.Context, filter map[string]any, opts ...*options.FindOneOptions) (*T, error)
 	Find(ctx context.Context, filter map[string]any, sort map[string]int) ([]*T, error)
 	Paginate(ctx context.Context, page int, limit int, filter map[string]any, sort map[string]int) ([]*T, int64, error)
 	GetMaxUpdatedAt(ctx context.Context) (int64, error)

@@ -235,11 +235,11 @@ func (r *MongoRepository[T, K]) List(ctx context.Context) ([]*T, error) {
 }
 
 // FindOne 根据复杂条件查询一条记录（排除已软删除的文档）
-func (r *MongoRepository[T, K]) FindOne(ctx context.Context, filter map[string]any) (*T, error) {
+func (r *MongoRepository[T, K]) FindOne(ctx context.Context, filter map[string]any, opts ...*options.FindOneOptions) (*T, error) {
 	// 自动排除软删除数据
 	ApplyUnDeletedFilter(filter)
 	var result T
-	err := r.collection.FindOne(ctx, bson.M(filter)).Decode(&result)
+	err := r.collection.FindOne(ctx, bson.M(filter), opts...).Decode(&result)
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, nil
 	}
