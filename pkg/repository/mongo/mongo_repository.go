@@ -169,6 +169,24 @@ func (r *MongoRepository[T, K]) UpdateFields(ctx context.Context, id K, updates 
 	return nil
 }
 
+func (r *MongoRepository[T, K]) UpdateOne(ctx context.Context, filter map[string]any, update map[string]any) error {
+	// 自动添加 updatedAt 字段（如果结构体中包含）
+	if _, ok := update["updatedAt"]; !ok {
+		update["updatedAt"] = time.Now()
+	}
+	// 执行更新
+	result, err := r.collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	}
+
+	if result.MatchedCount == 0 {
+		return errors.New("未找到匹配的文档")
+	}
+
+	return nil
+}
+
 func (r *MongoRepository[T, K]) Delete(ctx context.Context, id K) error {
 	filter := bson.M{r.idField: id}
 	update := bson.M{"$set": bson.M{"deletedAt": time.Now()}}
