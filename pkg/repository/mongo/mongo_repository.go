@@ -171,9 +171,9 @@ func (r *MongoRepository[T, K]) UpdateFields(ctx context.Context, id K, updates 
 
 func (r *MongoRepository[T, K]) UpdateOne(ctx context.Context, filter map[string]any, update map[string]any) error {
 	// 自动添加 updatedAt 字段（如果结构体中包含）
-	if _, ok := update["updatedAt"]; !ok {
-		update["updatedAt"] = time.Now()
-	}
+	//if _, ok := update["updatedAt"]; !ok {
+	//	update["updatedAt"] = time.Now()
+	//}
 	// 执行更新
 	result, err := r.collection.UpdateOne(ctx, filter, update)
 	if err != nil {
@@ -214,6 +214,11 @@ func (r *MongoRepository[T, K]) DeleteMany(ctx context.Context, ids []K) error {
 
 	// 执行更新
 	_, err := r.collection.UpdateMany(ctx, filter, update)
+	return err
+}
+
+func (r *MongoRepository[T, K]) HardDeleteOne(ctx context.Context, filter map[string]any) error {
+	_, err := r.collection.DeleteOne(ctx, filter)
 	return err
 }
 
