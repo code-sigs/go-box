@@ -161,7 +161,10 @@ func (r *RouterGroup) Register(path string, grpcFunc any) {
 }
 
 // Run 启动 Box 服务，支持用户自定义中间件，并实现优雅关闭
-func (r *Router) Run(addr string, shutdown func()) error {
+func (r *Router) Run(addr string, shutdown func(), isDebug bool) error {
+	if !isDebug {
+		gin.SetMode(gin.ReleaseMode)
+	}
 	engine := gin.New()
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"*"}, // 如果 AllowCredentials: true，请指定域名
