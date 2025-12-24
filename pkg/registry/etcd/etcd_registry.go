@@ -18,8 +18,8 @@ type EtcdRegistry struct {
 
 func NewEtcdRegistry(endpoints []string, dialTimeout time.Duration) (*EtcdRegistry, error) {
 	cli, err := clientv3.New(clientv3.Config{
-		Endpoints:   endpoints,
-		DialTimeout: dialTimeout,
+		Endpoints: endpoints,
+		//DialTimeout: dialTimeout,
 	})
 	if err != nil {
 		return nil, err

@@ -47,3 +47,7 @@ func NewRegistry(opt *RegistryOption) (registry_interface.Registry, error) {
 		return memory.NewMemoryRegistry(), nil
 	}
 }
+
+func NewRegistryETCD(cfg *EtcdConfig) (registry_interface.Registry, error) {
+	return etcd.NewEtcdRegistry(cfg.Address, time.Minute*3)
+}
