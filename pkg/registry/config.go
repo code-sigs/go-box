@@ -1,7 +1,7 @@
 package registry
 
 type RegistryConfig struct {
-	Enable bool       `mapstructure:"enable"` // 是否启用 etcd
+	Enable string     `mapstructure:"enable"` // 是否启用 etcd
 	Etcd   EtcdConfig `mapstructure:"etcd"`
 }
 
