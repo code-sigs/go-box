@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/code-sigs/go-box/pkg/logger"
 	registry "github.com/code-sigs/go-box/pkg/registry/registry_interface"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
@@ -65,6 +66,7 @@ func (e *EtcdRegistry) Register(ctx context.Context, info *registry.ServiceInfo)
 				if !ok {
 					_, _ = e.cli.Delete(context.Background(), key)
 					_, _ = e.cli.Revoke(context.Background(), leaseResp.ID)
+					logger.Warnw(ctx, "registry", "err", "etcd registry keep alive failed", "key", key)
 					return
 				}
 			case <-ctx.Done():
@@ -119,6 +121,7 @@ func (e *EtcdRegistry) Watch(ctx context.Context, serviceName string) (<-chan []
 		}
 
 		sendInstances := func(insts []*registry.ServiceInstance) {
+			logger.Warnw(ctx, "registry", "watch key", prefix, "services", insts)
 			select {
 			case out <- insts:
 			case <-ctx.Done():
