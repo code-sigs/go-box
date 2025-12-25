@@ -40,7 +40,7 @@ func (e *EtcdRegistry) Register(ctx context.Context, info *registry.ServiceInfo)
 	}
 	val := string(valBytes)
 
-	leaseResp, err := e.cli.Grant(ctx, 600)
+	leaseResp, err := e.cli.Grant(ctx, 15)
 	if err != nil {
 		return err
 	}
