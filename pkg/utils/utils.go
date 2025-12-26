@@ -135,6 +135,11 @@ func GenerateUUID() string {
 	return uuid.New().String()
 }
 
+// 生成 UUID v4
+func GenerateUUIDStr() string {
+	return strings.ReplaceAll(uuid.New().String(), "-", "")
+}
+
 // 生成指定长度的随机字符串（包含字母数字）
 func RandString(n int) string {
 	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
