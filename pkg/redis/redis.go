@@ -60,6 +60,10 @@ func NewRedisClient(cfg *RedisConfig) (*RedisClient, error) {
 	return &RedisClient{client: rdb}, nil
 }
 
+func (r *RedisClient) DB() redis.UniversalClient {
+	return r.client
+}
+
 // Get 获取字符串值
 func (r *RedisClient) Get(ctx context.Context, key string) (string, error) {
 	return r.client.Get(ctx, key).Result()
