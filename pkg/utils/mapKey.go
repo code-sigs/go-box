@@ -10,7 +10,9 @@ import (
 )
 
 // MapKey generates a deterministic, fixed-length Redis key suffix.
-// Output: 16 hex characters (64-bit FNV-1a).
+//
+// Output:
+//   - 16 hex characters (64-bit FNV-1a)
 //
 // Supported value types:
 //   - string
@@ -20,31 +22,33 @@ import (
 //   - time.Time
 //   - nil
 //
-// Any unsupported type will cause a panic (intentional, contract enforcement).
-func MapKey(m map[string]any) string {
+// Any unsupported type will cause a panic (intentional).
+func MapKey[T any](m map[string]T) string {
 	h := fnv.New64a()
 	writeMapToHash(h, m)
 	return fmt.Sprintf("%016x", h.Sum64())
 }
 
-// writeMapToHash writes a canonical byte sequence of the map into h.
-// This function is allocation-free except for key sorting.
-func writeMapToHash(h hash.Hash, m map[string]any) {
+// writeMapToHash writes a canonical representation of the map into the hash.
+// Map order is normalized by sorting keys.
+func writeMapToHash[T any](h hash.Hash, m map[string]T) {
 	if len(m) == 0 {
 		return
 	}
 
+	// 1. sort keys
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 
+	// 2. write key=value pairs
 	for _, k := range keys {
 		writeString(h, k)
 		writeByte(h, '=')
 
-		v := m[k]
+		v := any(m[k])
 		switch x := v.(type) {
 		case nil:
 			// key=
@@ -52,9 +56,9 @@ func writeMapToHash(h hash.Hash, m map[string]any) {
 			writeString(h, x)
 		case bool:
 			if x {
-				writeString(h, "1")
+				writeByte(h, '1')
 			} else {
-				writeString(h, "0")
+				writeByte(h, '0')
 			}
 		case int:
 			writeInt(h, int64(x))
@@ -82,11 +86,11 @@ func writeMapToHash(h hash.Hash, m map[string]any) {
 			writeFloat(h, x, 64)
 		case time.Time:
 			if !x.IsZero() {
-				// UTC + RFC3339Nano = 稳定且无歧义
+				// UTC + RFC3339Nano for stability
 				writeString(h, x.UTC().Format(time.RFC3339Nano))
 			}
 		default:
-			panic(fmt.Sprintf("redis key: unsupported value type %T", v))
+			panic(fmt.Sprintf("MapKey: unsupported value type %T", x))
 		}
 
 		writeByte(h, '&')
