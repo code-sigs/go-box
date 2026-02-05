@@ -95,7 +95,7 @@ func (r *Router) Group(name string, handlers ...gin.HandlerFunc) *RouterGroup {
 }
 
 // Register 注册一个 gRPC 方法与其绑定路径
-func (r *Router) Register(path string, grpcFunc any) {
+func (r *Router) POST(path string, grpcFunc any) {
 	h := GenericGRPCHandler(grpcFunc, r.injector)
 	r.routes = append(r.routes, routeEntry{
 		path:    path,
