@@ -152,7 +152,7 @@ func (r *RouterGroup) RegisterRPCClient(path string, grpcFunc any) {
 	})
 }
 
-func (r *RouterGroup) Register(path string, grpcFunc any) {
+func (r *RouterGroup) POST(path string, grpcFunc any) {
 	h := GenericGRPCHandler(grpcFunc, r.injector)
 	r.routes = append(r.routes, routeEntry{
 		path:    path,
@@ -161,7 +161,7 @@ func (r *RouterGroup) Register(path string, grpcFunc any) {
 }
 
 // Run 启动 Box 服务，支持用户自定义中间件，并实现优雅关闭
-func (r *Router) Run(addr string, shutdown func(), isDebug bool) error {
+func (r *Router) Run(addr string, beforeRun func(g *gin.Engine), shutdown func(), isDebug bool) error {
 	if !isDebug {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -186,6 +186,9 @@ func (r *Router) Run(addr string, shutdown func(), isDebug bool) error {
 		for _, route := range group.routes {
 			groupEngine.POST(route.path, route.handler)
 		}
+	}
+	if beforeRun != nil {
+		beforeRun(engine)
 	}
 	srv := &http.Server{
 		Addr:    addr,
