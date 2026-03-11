@@ -2,11 +2,14 @@ package router
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"reflect"
 
 	"github.com/code-sigs/go-box/pkg/rpcerror"
 	"github.com/gin-gonic/gin"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 type StandardResponse[T any] struct {
@@ -59,9 +62,6 @@ func GenericGRPCHandler(grpcFunc any, ctxInjector ContextInjector) gin.HandlerFu
 			reqVal = reqPtr.Elem()
 		}
 
-		// ctx := ctxInjector(c, c.Request.Context())
-		//logger.Infof(c, "ctxInjector clientip: %s", c.ClientIP())
-		//logger.Infow(c, "GenericGRPCHandler", "userID", c.Value("userID"), "platformID", c.Value("platformID"))
 		ctx := context.WithValue(c.Request.Context(), "clientip", c.ClientIP())
 		userID := c.Value("user-id")
 		platformID := c.Value("platform-id")
@@ -80,23 +80,45 @@ func GenericGRPCHandler(grpcFunc any, ctxInjector ContextInjector) gin.HandlerFu
 
 		if !out[1].IsNil() {
 			if err, ok := out[1].Interface().(error); ok {
-				// 优先提取业务错误
 				if rpcErr := rpcerror.UnWrap(err); rpcErr != nil {
 					c.JSON(http.StatusOK, StandardResponse[any]{
 						Code:    rpcErr.Code,
 						Message: rpcErr.Message,
 						Details: rpcErr.Details,
-						Data:    nil, // 保证错误时 Data 一定为 nil
+						Data:    nil,
 					})
 					return
 				}
-				// 普通错误
 				c.JSON(http.StatusInternalServerError, StandardResponse[any]{Code: 500, Message: err.Error(), Data: nil})
 			} else {
 				c.JSON(http.StatusInternalServerError, StandardResponse[any]{Code: 500, Message: "unknown error", Data: nil})
 			}
 			return
 		}
-		c.JSON(http.StatusOK, StandardResponse[any]{Code: 0, Message: "ok", Data: out[0].Interface()})
+
+		data, err := normalizeResponseData(out[0].Interface())
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, StandardResponse[any]{Code: 500, Message: "marshal response failed: " + err.Error(), Data: nil})
+			return
+		}
+		c.JSON(http.StatusOK, StandardResponse[any]{Code: 0, Message: "ok", Data: data})
 	}
+}
+
+func normalizeResponseData(data any) (any, error) {
+	message, ok := data.(proto.Message)
+	if !ok {
+		return data, nil
+	}
+
+	bytes, err := protojson.MarshalOptions{EmitUnpopulated: true}.Marshal(message)
+	if err != nil {
+		return nil, err
+	}
+
+	var normalized any
+	if err = json.Unmarshal(bytes, &normalized); err != nil {
+		return nil, err
+	}
+	return normalized, nil
 }
