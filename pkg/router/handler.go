@@ -65,11 +65,20 @@ func GenericGRPCHandler(grpcFunc any, ctxInjector ContextInjector) gin.HandlerFu
 		ctx := context.WithValue(c.Request.Context(), "clientip", c.ClientIP())
 		userID := c.Value("user-id")
 		platformID := c.Value("platform-id")
+		tenantID := c.Value("tenant-id")
+		natType := c.Value("nat-type")
+
 		if userID != nil {
 			ctx = context.WithValue(ctx, "user-id", userID)
 		}
 		if platformID != nil {
 			ctx = context.WithValue(ctx, "platform-id", platformID)
+		}
+		if tenantID != nil {
+			ctx = context.WithValue(ctx, "tenant-id", tenantID)
+		}
+		if natType != nil {
+			ctx = context.WithValue(ctx, "nat-type", natType)
 		}
 		out := fnVal.Call([]reflect.Value{reflect.ValueOf(ctx), reqVal})
 

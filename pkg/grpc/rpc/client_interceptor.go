@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+
 	"github.com/code-sigs/go-box/pkg/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
