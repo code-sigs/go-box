@@ -79,7 +79,8 @@ func Init(logDir string, opts ...Option) {
 
 	level := parseLevel(conf.logLevel)
 	fileCore := zapcore.NewCore(
-		zapcore.NewConsoleEncoder(encoderConfig),
+		//zapcore.NewConsoleEncoder(encoderConfig),
+		zapcore.NewJSONEncoder(encoderConfig),
 		zapcore.AddSync(writer),
 		level,
 	)
