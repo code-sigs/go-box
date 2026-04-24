@@ -20,14 +20,27 @@ func NewGRPCServer() *grpc.Server {
 	)
 }
 
+// const (
+// 	UserID     = "user-id"
+// 	LoginID    = "login-id"
+// 	PlatformID = "platform-id"
+// 	TenantID   = "tenant-id"
+// 	ClientIP   = "clientip"
+// 	Token      = "apitoken"
+// 	NatType    = "nat-type"
+// 	DeviceKey  = "device-key"
+// 	AuthType   = "auth-type"
+// 	IMToken    = "im-token"
+// )
+
 func NewGRPCConn(ctx context.Context, serviceName string, registry registry_interface.Registry) (*grpc.ClientConn, error) {
 	client, err := grpc.NewClient(
 		registry.Name()+":///"+serviceName,
 		grpc.WithResolvers(resolver.NewBuilder(registry)),
-		grpc.WithTransportCredentials(insecure.NewCredentials()),                                                     // 注意：生产环境中请使用安全连接
-		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(1024*1024*100)),                                          // 设置最大发送消息大小为 100MB
-		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(1024*1024*100)),                                          // 设置最大接收消息大小为 100MB
-		grpc.WithUnaryInterceptor(RPCClientInterceptor([]string{"user-id", "platform-id", "tenant-id", "nat-type"})), // 可以传入自定义的 header 列表
+		grpc.WithTransportCredentials(insecure.NewCredentials()),            // 注意：生产环境中请使用安全连接
+		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(1024*1024*100)), // 设置最大发送消息大小为 100MB
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(1024*1024*100)), // 设置最大接收消息大小为 100MB
+		grpc.WithUnaryInterceptor(RPCClientInterceptor([]string{"user-id", "login-id", "platform-id", "tenant-id", "nat-type", "device-key", "auth-type", "im-token"})), // 可以传入自定义的 header 列表
 		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`),
 	)
 	if err != nil {
