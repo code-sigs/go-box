@@ -67,7 +67,9 @@ func GenericGRPCHandler(grpcFunc any, ctxInjector ContextInjector) gin.HandlerFu
 		platformID := c.Value("platform-id")
 		tenantID := c.Value("tenant-id")
 		natType := c.Value("nat-type")
-
+		deviceKey := c.Value("device-key")
+		authType := c.Value("auth-type")
+		imToken := c.Value("im-token")
 		if userID != nil {
 			ctx = context.WithValue(ctx, "user-id", userID)
 		}
@@ -79,6 +81,15 @@ func GenericGRPCHandler(grpcFunc any, ctxInjector ContextInjector) gin.HandlerFu
 		}
 		if natType != nil {
 			ctx = context.WithValue(ctx, "nat-type", natType)
+		}
+		if deviceKey != nil {
+			ctx = context.WithValue(ctx, "device-key", deviceKey)
+		}
+		if authType != nil {
+			ctx = context.WithValue(ctx, "auth-type", authType)
+		}
+		if imToken != nil {
+			ctx = context.WithValue(ctx, "im-token", imToken)
 		}
 		out := fnVal.Call([]reflect.Value{reflect.ValueOf(ctx), reqVal})
 
